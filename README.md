@@ -25,6 +25,7 @@ Mule is a **headless API and admin panel generator** that transforms a single co
 - ✅ a **dynamic REST API** with filtering
 - ✅ a **beautiful admin interface** with Tailwind CSS + Alpine.js
 - ✅ fully **customizable entity definitions** (EAV model)
+- ✅ a **fluent builder API** for creating content types, fields, and content programmatically
 
 > Define your data once, and Mule builds the entire backend – **zero boilerplate**.
 
@@ -57,7 +58,8 @@ npm run dev
 | 🔌 **REST API** | Full CRUD for all entities, with query‑string filtering. |
 | 🌐 **Multi‑language Ready** | Built‑in locale switcher (easily extendable). |
 | 🎨 **Pug Templates** | Clean layout with partials for navbar, footer, alerts, and metadata. |
-| 🚀 **Instant Prototyping** | Add a new entity in 30 seconds – no manual migration files. |
+| 🧬 **Fluent Builder API** | Create content types, field types, fields, and content records using chainable, idiomatic JavaScript. |
+| 🔒 **Field Type Constraints** | Associate allowed field types with content types via a junction table, ensuring data integrity. |
 
 ---
 
@@ -70,6 +72,8 @@ mule/
 ├── controllers/
 │   ├── adminController.js     # 🖥️ Dynamic admin CRUD
 │   └── apiController.js       # 🌐 Dynamic REST API
+├── lib/
+│   └── builders.js            # 🧬 Fluent builders for programmatic content creation
 ├── middleware/
 │   └── globals.js             # 🌍 Shared view data (locales, nav links)
 ├── models/
@@ -88,6 +92,7 @@ mule/
 │       ├── generic_list.pug   # 📋 List page
 │       ├── generic_form.pug   # 📝 Create/Edit form
 │       └── generic_confirm_delete.pug  # 🗑️ Deletion confirmation
+├── seed.js                    # 🌱 Example seed script using builders
 ├── prisma/                    # (generated)
 ├── .env
 ├── package.json
@@ -125,35 +130,157 @@ Example: **`/admin/content_type`** shows all content types.
 
 ---
 
-## 🧪 Entity Configuration Example
+## 🧬 Fluent Builder API
+
+Mule includes a set of chainable builder classes that let you create content types, field types, field configurations, and content records **programmatically** – perfect for seeding, migrations, or scripted content creation.
+
+### Available builders
+
+| Builder              | Purpose                                           |
+|----------------------|---------------------------------------------------|
+| `ContentTypeBuilder` | Create a content type and its fields in one go    |
+| `FieldTypeBuilder`   | Create a reusable field type (e.g., "text", "reference") |
+| `FieldBuilder`       | Create a standalone field config (less common)    |
+| `ContentBuilder`     | Create a content record and set its field values   |
+
+All builders use `EntityModel` under the hood, so data is stored exactly the same way as through the admin panel or API.
+
+### Example seed script (`seed.js`)
+
+```javascript
+import { PrismaClient } from '@prisma/client';
+import { ContentTypeBuilder, FieldTypeBuilder, ContentBuilder } from './lib/builders.js';
+
+const prisma = new PrismaClient();
+
+async function seed() {
+  // Clean slate
+  await prisma.content_reference.deleteMany();
+  await prisma.field_value_blob.deleteMany();
+  await prisma.field_value_real.deleteMany();
+  await prisma.field_value_integer.deleteMany();
+  await prisma.field_value_text.deleteMany();
+  await prisma.content_data.deleteMany();
+  await prisma.content_type_field_type.deleteMany();
+  await prisma.field_configs.deleteMany();
+  await prisma.content_type.deleteMany();
+  await prisma.field_type.deleteMany();
+
+  // 1. Create field types
+  const textType      = await FieldTypeBuilder.of('text', 'text').label('Text').create();
+  const longTextType  = await FieldTypeBuilder.of('long_text', 'text').label('Long Text').create();
+  const referenceType = await FieldTypeBuilder.of('reference', 'reference').label('Reference').create();
+
+  // 2. Create content types WITH their fields
+  const recipeType = await ContentTypeBuilder.of('recipe', 'Recipe')
+    .addField(textType, { name: 'name', label: 'Name' })
+    .addField(longTextType, { name: 'description', label: 'Description' })
+    .addField(referenceType, { name: 'ingredients', label: 'Ingredients' })
+    .create();
+
+  const ingredientType = await ContentTypeBuilder.of('ingredient', 'Ingredient')
+    .addField(textType, { name: 'name', label: 'Name' })
+    .create();
+
+  // 3. Look up the created field configs
+  const getField = (contentTypeId, name) =>
+    prisma.field_configs.findFirst({ where: { content_type_id: contentTypeId, name } });
+
+  const nameField          = await getField(recipeType.id, 'name');
+  const descriptionField   = await getField(recipeType.id, 'description');
+  const ingredientsField   = await getField(recipeType.id, 'ingredients');
+  const ingredientNameField= await getField(ingredientType.id, 'name');
+
+  // 4. Create ingredient content
+  const cheese = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Cheese Cake').save();
+  const milk   = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Milk').save();
+  const salt   = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Salt').save();
+  const pepper = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Pepper').save();
+
+  // 5. Create a recipe referencing those ingredients
+  const newRecipe = await new ContentBuilder(recipeType)
+    .set(nameField, 'Cheese Cake')
+    .set(descriptionField, 'This is a Cheese Cake')
+    .set(ingredientsField, [cheese.id, milk.id, salt.id, pepper.id])
+    .save();
+
+  console.log('✅ Seed complete!');
+  console.log('Recipe:', newRecipe);
+}
+
+seed().catch(console.error).finally(() => prisma.$disconnect());
+```
+
+Run it anytime with:
+
+```bash
+node seed.js
+```
+
+---
+
+## 🧪 Entity Configuration
+
+Mule’s heart is **`config/entityDefinitions.js`**. Here you define every database table, its columns, relationships, validation rules, and admin form behaviour.
+
+### New tables for content modelling
+
+- **`field_type`** – Reusable field type definitions (e.g., "text", "reference") with a default storage type.
+- **`content_type_field_type`** – Junction table that links a `content_type` to the `field_type`s it allows. This restricts which fields can be added to a content type.
+- **`field_configs`** – Now includes `field_type_id` so each field belongs to a specific field type.
+
+These tables enforce that **every field belongs to a field type**, and **every content type defines which field types are valid** for its content.
+
+### Example snippet
 
 ```js
-// config/entityDefinitions.js
 export const entityDefinitions = {
-  content_type: {
-    table: 'content_type',
+  field_type: {
+    table: 'field_type',
     primaryKey: 'id',
     useTimestamps: true,
     fields: {
       id:   { type: 'INT', auto: true, label: 'ID', form: { type: 'hidden' } },
       name: { type: 'VARCHAR', constraint: 100, unique: true, label: 'Name', form: { type: 'text' } },
-      label:{ type: 'VARCHAR', constraint: 255, label: 'Label', form: { type: 'text' } }
+      label:{ type: 'VARCHAR', constraint: 255, label: 'Label', form: { type: 'text' } },
+      storage_type: { type: 'VARCHAR', constraint: 20, default: 'text', label: 'Default Storage Type', form: { type: 'select', options: ['text','integer','real','blob','reference'] } }
     },
-    allowedFilters: ['name', 'label'],
-    listColumns: ['id', 'name', 'label', 'created_at'],
-    formFields: ['name', 'label']
+    allowedFilters: ['name', 'storage_type'],
+    listColumns: ['id', 'name', 'label', 'storage_type', 'created_at'],
+    formFields: ['name', 'label', 'storage_type']
+  },
+
+  content_type_field_type: {
+    table: 'content_type_field_type',
+    primaryKey: 'id',
+    useTimestamps: false,
+    fields: {
+      id: { type: 'INT', auto: true, label: 'ID', form: { type: 'hidden' } },
+      content_type_id: { type: 'INT', unsigned: true, null: false, label: 'Content Type', form: { type: 'select', source: 'content_type' } },
+      field_type_id:   { type: 'INT', unsigned: true, null: false, label: 'Field Type', form: { type: 'select', source: 'field_type' } }
+    },
+    allowedFilters: ['content_type_id', 'field_type_id'],
+    listColumns: ['id', 'content_type_id', 'field_type_id'],
+    formFields: ['content_type_id', 'field_type_id'],
+    foreignKeys: {
+      content_type_id: ['content_type', 'id'],
+      field_type_id: ['field_type', 'id']
+    }
+  },
+
+  content_type: { /* unchanged */ },
+  field_configs: {
+    // ... now includes field_type_id foreign key and extra filters/columns
   }
-  // ... add more entities here
+  // ... remaining tables
 };
 ```
 
-After any change, run:
+After any edit, regenerate the Prisma schema and migrate:
 
 ```bash
 npm run generate-schema:migrate
 ```
-
-This updates the Prisma schema and applies the migration automatically.
 
 ---
 
@@ -208,5 +335,5 @@ Distributed under the **ISC License**. See `LICENSE` for more information.
 
 <p align="center">
   Made with ❤️ and a lot of ☕ by <strong>Stephen Camilo</strong>.<br/>
-  <sub>🐾 Because your content deserves a flexible home.</sub>
+  <sub>🫏 Because your content deserves a flexible home.</sub>
 </p>
