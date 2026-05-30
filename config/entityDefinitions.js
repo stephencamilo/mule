@@ -1,5 +1,61 @@
-// config/entityDefinitions.js
 export const entityDefinitions = {
+  // -----------------------------------------------
+  // field_type – predefined list of field types
+  // -----------------------------------------------
+  field_type: {
+    table: 'field_type',
+    primaryKey: 'id',
+    compositeKey: false,
+    useTimestamps: true,
+    createdField: 'created_at',
+    updatedField: 'updated_at',
+    fields: {
+      id: {
+        type: 'INT',
+        unsigned: true,
+        auto: true,
+        cast: 'integer',
+        label: 'ID',
+        form: { type: 'hidden' },
+      },
+      name: {
+        type: 'VARCHAR',
+        constraint: 100,
+        null: false,
+        unique: true,
+        cast: 'string',
+        validation: 'required|max_length[100]|is_unique[field_type.name]',
+        label: 'Name',
+        form: { type: 'text' },
+      },
+      label: {
+        type: 'VARCHAR',
+        constraint: 255,
+        null: false,
+        cast: 'string',
+        validation: 'required|max_length[255]',
+        label: 'Label',
+        form: { type: 'text' },
+      },
+      storage_type: {   // optional default storage type for this field type
+        type: 'VARCHAR',
+        constraint: 20,
+        null: false,
+        default: 'text',
+        cast: 'string',
+        validation: 'required|in_list[text,integer,real,blob,reference]',
+        label: 'Default Storage Type',
+        form: { type: 'select', options: ['text', 'integer', 'real', 'blob', 'reference'] },
+      },
+    },
+    allowedFilters: ['name', 'storage_type'],
+    listColumns: ['id', 'name', 'label', 'storage_type', 'created_at'],
+    formFields: ['name', 'label', 'storage_type'],
+  },
+
+  // -----------------------------------------------
+  // content_type – unchanged
+  // -----------------------------------------------
   content_type: {
     table: 'content_type',
     primaryKey: 'id',
@@ -39,8 +95,58 @@ export const entityDefinitions = {
     allowedFilters: ['name', 'label'],
     listColumns: ['id', 'name', 'label', 'created_at'],
     formFields: ['name', 'label'],
+    // No foreign keys yet – junction table handles many-to-many
   },
 
+  // -----------------------------------------------
+  // content_type_field_type – junction table
+  // -----------------------------------------------
+  content_type_field_type: {
+    table: 'content_type_field_type',
+    primaryKey: 'id',          // optional synthetic key
+    compositeKey: false,
+    useTimestamps: false,
+    fields: {
+      id: {
+        type: 'INT',
+        unsigned: true,
+        auto: true,
+        cast: 'integer',
+        label: 'ID',
+        form: { type: 'hidden' },
+      },
+      content_type_id: {
+        type: 'INT',
+        unsigned: true,
+        null: false,
+        cast: 'integer',
+        validation: 'required|integer',
+        label: 'Content Type',
+        form: { type: 'select', source: 'content_type' },
+      },
+      field_type_id: {
+        type: 'INT',
+        unsigned: true,
+        null: false,
+        cast: 'integer',
+        validation: 'required|integer',
+        label: 'Field Type',
+        form: { type: 'select', source: 'field_type' },
+      },
+    },
+    allowedFilters: ['content_type_id', 'field_type_id'],
+    listColumns: ['id', 'content_type_id', 'field_type_id'],
+    formFields: ['content_type_id', 'field_type_id'],
+    foreignKeys: {
+      content_type_id: ['content_type', 'id'],
+      field_type_id: ['field_type', 'id'],
+    },
+    // optional: add a composite unique constraint on (content_type_id, field_type_id)
+  },
+
+  // -----------------------------------------------
+  // field_configs – updated with field_type_id
+  // -----------------------------------------------
   field_configs: {
     table: 'field_configs',
     primaryKey: 'id',
@@ -65,6 +171,15 @@ export const entityDefinitions = {
         validation: 'required|integer',
         label: 'Content Type',
         form: { type: 'select', source: 'content_type' },
+      },
+      field_type_id: {            // ← new foreign key
+        type: 'INT',
+        unsigned: true,
+        null: false,
+        cast: 'integer',
+        validation: 'required|integer',
+        label: 'Field Type',
+        form: { type: 'select', source: 'field_type' },
       },
       name: {
         type: 'VARCHAR',
@@ -110,14 +225,18 @@ export const entityDefinitions = {
         form: { type: 'textarea' },
       },
     },
-    allowedFilters: ['content_type_id', 'name', 'storage_type'],
-    listColumns: ['id', 'content_type_id', 'name', 'label', 'storage_type', 'created_at'],
-    formFields: ['content_type_id', 'name', 'label', 'storage_type', 'validation', 'filters'],
+    allowedFilters: ['content_type_id', 'field_type_id', 'name', 'storage_type'],
+    listColumns: ['id', 'content_type_id', 'field_type_id', 'name', 'label', 'storage_type', 'created_at'],
+    formFields: ['content_type_id', 'field_type_id', 'name', 'label', 'storage_type', 'validation', 'filters'],
     foreignKeys: {
       content_type_id: ['content_type', 'id'],
+      field_type_id: ['field_type', 'id'],    // new FK
     },
   },
 
+  // -----------------------------------------------
+  // content_data – unchanged
+  // -----------------------------------------------
   content_data: {
     table: 'content_data',
     primaryKey: 'id',
@@ -152,6 +271,8 @@ export const entityDefinitions = {
     },
   },
 
+  // The value tables (field_value_text, integer, real, blob, content_reference)
+  // remain exactly the same – they reference field_configs and content_data.
   field_value_text: {
     table: 'field_value_text',
     primaryKey: 'id',
