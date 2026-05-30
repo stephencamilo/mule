@@ -1,0 +1,25 @@
+{
+  "name": "mule",
+  "version": "1.0.0",
+  "description": "Headless API with Express, Prisma and SQLite",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "generate-schema": "node scripts/generate-schema.js",
+    "generate-schema:fresh": "node scripts/generate-schema.js --fresh",
+    "generate-schema:migrate": "node scripts/generate-schema.js --migrate",
+    "generate-schema:fresh-migrate": "node scripts/generate-schema.js --fresh --migrate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "nodemon": "^3.1.14",
+    "prisma": "^5.22.0",
+    "pug": "^3.0.4"
+  }
+}

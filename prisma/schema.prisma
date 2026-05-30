@@ -1,0 +1,111 @@
+// Auto-generated schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model field_value_text {
+  id  Int @id @default(autoincrement())
+  content_data_id  Int
+  field_config_id  Int
+  value  String
+  content_data  content_data @relation("content_data", fields: [content_data_id], references: [id])
+  field_config  field_configs @relation("field_config", fields: [field_config_id], references: [id])
+  // @@reverse@@
+  @@map("field_value_text")
+}
+
+model field_value_integer {
+  id  Int @id @default(autoincrement())
+  content_data_id  Int
+  field_config_id  Int
+  value  Int
+  content_data  content_data @relation("content_data", fields: [content_data_id], references: [id])
+  field_config  field_configs @relation("field_config", fields: [field_config_id], references: [id])
+  // @@reverse@@
+  @@map("field_value_integer")
+}
+
+model field_value_real {
+  id  Int @id @default(autoincrement())
+  content_data_id  Int
+  field_config_id  Int
+  value  Float
+  content_data  content_data @relation("content_data", fields: [content_data_id], references: [id])
+  field_config  field_configs @relation("field_config", fields: [field_config_id], references: [id])
+  // @@reverse@@
+  @@map("field_value_real")
+}
+
+model field_value_blob {
+  id  Int @id @default(autoincrement())
+  content_data_id  Int
+  field_config_id  Int
+  value  String
+  content_data  content_data @relation("content_data", fields: [content_data_id], references: [id])
+  field_config  field_configs @relation("field_config", fields: [field_config_id], references: [id])
+  // @@reverse@@
+  @@map("field_value_blob")
+}
+
+model content_reference {
+  id  Int @id @default(autoincrement())
+  content_data_id  Int
+  field_config_id  Int
+  referenced_content_id  Int
+  content_data  content_data @relation("content_data", fields: [content_data_id], references: [id])
+  field_config  field_configs @relation("field_config", fields: [field_config_id], references: [id])
+  referenced_content  content_data @relation("referenced_content", fields: [referenced_content_id], references: [id])
+  // @@reverse@@
+  @@map("content_reference")
+}
+
+model field_configs {
+  id  Int @id @default(autoincrement())
+  content_type_id  Int
+  name  String
+  label  String
+  storage_type  String
+  validation  String?
+  filters  String?
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  content_type  content_type @relation("content_type", fields: [content_type_id], references: [id])
+  field_value_text_field_config  field_value_text[]  @relation("field_config")
+  field_value_integer_field_config  field_value_integer[]  @relation("field_config")
+  field_value_real_field_config  field_value_real[]  @relation("field_config")
+  field_value_blob_field_config  field_value_blob[]  @relation("field_config")
+  content_reference_field_config  content_reference[]  @relation("field_config")
+  @@map("field_configs")
+}
+
+model content_data {
+  id  Int @id @default(autoincrement())
+  content_type_id  Int
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  content_type  content_type @relation("content_type", fields: [content_type_id], references: [id])
+  field_value_text_content_data  field_value_text[]  @relation("content_data")
+  field_value_integer_content_data  field_value_integer[]  @relation("content_data")
+  field_value_real_content_data  field_value_real[]  @relation("content_data")
+  field_value_blob_content_data  field_value_blob[]  @relation("content_data")
+  content_reference_content_data  content_reference[]  @relation("content_data")
+  content_reference_referenced_content  content_reference[]  @relation("referenced_content")
+  @@map("content_data")
+}
+
+model content_type {
+  id  Int @id @default(autoincrement())
+  name  String @unique
+  label  String
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  field_configs_content_type  field_configs[]  @relation("content_type")
+  content_data_content_type  content_data[]  @relation("content_type")
+  @@map("content_type")
+}
+

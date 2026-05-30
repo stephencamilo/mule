@@ -1,0 +1,64 @@
+//- layouts/main.pug
+include ../partials/meta
+
+doctype html
+html(lang=locale || 'en' class="scroll-smooth")
+  head
+    +meta(title, description)
+    link(href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet")
+    script(defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.3/dist/cdn.min.js")
+    style.
+      @keyframes fadeInUp {
+        0% { opacity: 0; transform: translateY(12px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeInUp 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
+      }
+      .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.1);
+      }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 12px; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; transition: background 0.2s; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      ::selection { background-color: rgba(99, 102, 241, 0.2); color: #1e1b4b; }
+      html { scroll-behavior: smooth; }
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      *:focus-visible {
+        outline: 2px solid #818cf8;
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      @keyframes softPulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+      .pulse-soft { animation: softPulse 2s infinite; }
+
+  body(class="bg-gradient-to-br from-slate-50 via-indigo-50/20 to-white min-h-screen flex flex-col antialiased font-sans text-slate-700")
+
+    //- Navbar (the Alpine.js component)
+    include ../partials/navbar
+
+    //- Alert (success/error messages)
+    .relative.z-10
+      include ../partials/alert
+
+    .flex-1.flex
+      main(class="flex-1 flex w-full")
+        .w-full.max-w-7xl.mx-auto.px-4(class="sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10 animate-fade-in")
+          block content
+
+    //- Footer
+    include ../partials/footer
+
+    block scripts
