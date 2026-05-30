@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://emojicdn.elk.sh/🐾" alt="Mule Logo" width="80" />
+  <img src="https://emojicdn.elk.sh/🫏" alt="Mule Logo" width="80" />
 </p>
 
-<h1 align="center">Mule 🐾</h1>
+<h1 align="center">Mule 🫏</h1>
 <p align="center">
   <strong>Dynamic Headless CMS & REST API</strong><br/>
   <em>Express + Prisma + SQLite + Pug</em>
