@@ -207,6 +207,7 @@ export function index() {
         fields: def.fields,
         filters,
         action: `/admin/${entityKey}`,
+        def,
         locale: req.locale ?? 'en',
       });
     } catch (err) {
