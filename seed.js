@@ -1,93 +1,48 @@
-// seed.js – Example usage of the fluent builder library
 import { PrismaClient } from '@prisma/client';
-import {
-  ContentTypeBuilder,
-  FieldTypeBuilder,
-  FieldBuilder,
-  ContentBuilder,
-} from './lib/builders.js';
+import { ContentTypeBuilder, FieldTypeBuilder, ContentBuilder } from './lib/builders.js';
 
-// Prisma must be generated before running this script
 const prisma = new PrismaClient();
 
 async function seed() {
-  // 1. Create content types
-  const recipeType = await new ContentTypeBuilder()
-    .setName('recipe')
-    .setLabel('Recipe')
+  // 1. Create field types
+  const textType      = await FieldTypeBuilder.of('text', 'text').label('Text').create();
+  const longTextType  = await FieldTypeBuilder.of('long_text', 'text').label('Long Text').create();
+  const referenceType = await FieldTypeBuilder.of('reference', 'reference').label('Reference').create();
+
+  // 2. Create content types with their fields
+  const recipeType = await ContentTypeBuilder.of('recipe', 'Recipe')
+    .addField(textType, { name: 'name', label: 'Name' })
+    .addField(longTextType, { name: 'description', label: 'Description' })
+    .addField(referenceType, { name: 'ingredients', label: 'Ingredients' })
     .create();
 
-  const ingredientType = await new ContentTypeBuilder()
-    .setName('ingredient')
-    .setLabel('Ingredient')
+  const ingredientType = await ContentTypeBuilder.of('ingredient', 'Ingredient')
+    .addField(textType, { name: 'name', label: 'Name' })
     .create();
 
-  // 2. Create field types
-  const textType = await new FieldTypeBuilder()
-    .setName('text')
-    .setLabel('Text')
-    .setStorageType('text')
-    .create();
+  // 3. Look up the created field configs
+  const getField = (contentTypeId, name) =>
+    prisma.field_configs.findFirst({ where: { content_type_id: contentTypeId, name } });
 
-  const longTextType = await new FieldTypeBuilder()
-    .setName('long_text')
-    .setLabel('Long Text')
-    .setStorageType('text')
-    .create();
+  const nameField          = await getField(recipeType.id, 'name');
+  const descriptionField   = await getField(recipeType.id, 'description');
+  const ingredientsField   = await getField(recipeType.id, 'ingredients');
+  const ingredientNameField= await getField(ingredientType.id, 'name');
 
-  const referenceType = await new FieldTypeBuilder()
-    .setName('reference')
-    .setLabel('Reference')
-    .setStorageType('reference')
-    .create();
+  // 4. Create ingredient content
+  const cheese = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Cheese Cake').save();
+  const milk   = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Milk').save();
+  const salt   = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Salt').save();
+  const pepper = await new ContentBuilder(ingredientType).set(ingredientNameField, 'Pepper').save();
 
-  // 3. Create field configs (fields on content types)
-  const nameField = await new FieldBuilder(textType)
-    .setName('name')
-    .setLabel('Name')
-    .setContentType(recipeType)
-    .create();
-
-  const descriptionField = await new FieldBuilder(longTextType)
-    .setName('description')
-    .setLabel('Description')
-    .setContentType(recipeType)
-    .create();
-
-  const ingredientsField = await new FieldBuilder(referenceType)
-    .setName('ingredients')
-    .setLabel('Ingredients')
-    .setContentType(recipeType)
-    .create();
-
-  // 4. Create some ingredient content
-  const cheese = await new ContentBuilder(ingredientType)
-    .setValue(nameField, 'Cheese Cake')
-    .save();
-
-  const milk = await new ContentBuilder(ingredientType)
-    .setValue(nameField, 'Milk')
-    .save();
-
-  const salt = await new ContentBuilder(ingredientType)
-    .setValue(nameField, 'Salt')
-    .save();
-
-  const pepper = await new ContentBuilder(ingredientType)
-    .setValue(nameField, 'Pepper')
-    .save();
-
-  // 5. Create a recipe that references those ingredients
+  // 5. Create a recipe referencing those ingredients
   const newRecipe = await new ContentBuilder(recipeType)
-    .setValue(nameField, 'Cheese Cake')
-    .setValue(descriptionField, 'This is a Cheese Cake')
-    .setValue(ingredientsField, [cheese.id, milk.id, salt.id, pepper.id])
+    .set(nameField, 'Cheese Cake')
+    .set(descriptionField, 'This is a Cheese Cake')
+    .set(ingredientsField, [cheese.id, milk.id, salt.id, pepper.id])
     .save();
 
-  console.log('✅ Seed data created successfully!');
-  console.log('Recipe:', newRecipe);
+  console.log('✅ Seed complete!', newRecipe);
 }
 
-seed()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+seed().catch(console.error).finally(() => prisma.$disconnect());
