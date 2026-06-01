@@ -11,14 +11,27 @@ function loadDefinition(entityKey) {
   return def;
 }
 
+/**
+ * Extracts primary key value(s) from an array of ID strings.
+ * For single primary key: returns a number (first numeric value found).
+ * For composite key: returns an object { key1: value1, key2: value2 }.
+ */
 function extractId(ids, def) {
   const pk = def.primaryKey;
   if (Array.isArray(pk)) {
+    // Composite key: need exactly pk.length ids
     if (ids.length === pk.length) {
-      return Object.fromEntries(pk.map((k, i) => [k, ids[i]]));
+      const result = {};
+      for (let i = 0; i < pk.length; i++) {
+        const val = ids[i];
+        result[pk[i]] = isNaN(val) ? val : Number(val);
+      }
+      return result;
     }
   } else {
-    if (ids.length === 1) return Number(ids[0]);
+    // Single primary key: take the first value that is a number (excluding entity key)
+    const numericId = ids.find(id => !isNaN(Number(id)) && String(id).trim() !== '');
+    if (numericId !== undefined) return Number(numericId);
   }
   const err = new Error('Invalid ID parameters');
   err.status = 404;
@@ -126,6 +139,10 @@ function mapFieldToFilterType(fieldDef) {
   }
 }
 
+// --------------------------------------------------------------
+// CONTROLLER FUNCTIONS
+// --------------------------------------------------------------
+
 export function index() {
   return async (req, res, next) => {
     try {
@@ -220,7 +237,9 @@ export function edit() {
     try {
       const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
-      const ids = Object.values(req.params);
+      // Extract all values except the entity key itself
+      const allParams = Object.values(req.params);
+      const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
       const id = extractId(ids, def);
       const entity = new EntityModel(entityKey);
       const record = await entity.find(id);
@@ -243,7 +262,8 @@ export function update() {
     try {
       const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
-      const ids = Object.values(req.params);
+      const allParams = Object.values(req.params);
+      const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
       const id = extractId(ids, def);
       const entity = new EntityModel(entityKey);
       const data = { ...req.body };
@@ -251,7 +271,10 @@ export function update() {
       await entity.update(id, data);
       res.redirect(`/admin/${entityKey}`);
     } catch (err) {
-      res.redirect(`/admin/${entityKey}/edit/${Object.values(req.params).join('/')}?error=${encodeURIComponent(err.message)}`);
+      const entityKey = req.params.entity;
+      const allParams = Object.values(req.params);
+      const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
+      res.redirect(`/admin/${entityKey}/edit/${ids.join('/')}?error=${encodeURIComponent(err.message)}`);
     }
   };
 }
@@ -261,7 +284,8 @@ export function deleteConfirm() {
     try {
       const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
-      const ids = Object.values(req.params);
+      const allParams = Object.values(req.params);
+      const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
       const id = extractId(ids, def);
       const entity = new EntityModel(entityKey);
       const record = await entity.find(id);
@@ -282,7 +306,8 @@ export function deleteEntity() {
     try {
       const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
-      const ids = Object.values(req.params);
+      const allParams = Object.values(req.params);
+      const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
       const id = extractId(ids, def);
       const entity = new EntityModel(entityKey);
       await entity.delete(id);
