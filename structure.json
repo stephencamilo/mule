@@ -1,0 +1,245 @@
+{
+  "field_types": [
+    {
+      "name": "text",
+      "label": "Text (formatted)",
+      "storage_type": "String"
+    },
+    {
+      "name": "long_text",
+      "label": "Long Text (formatted)",
+      "storage_type": "String"
+    },
+    {
+      "name": "text_with_summary",
+      "label": "Text (formatted, with summary)",
+      "storage_type": "String"
+    },
+    {
+      "name": "string",
+      "label": "Text (plain)",
+      "storage_type": "String"
+    },
+    {
+      "name": "string_long",
+      "label": "Text (plain, long)",
+      "storage_type": "String"
+    },
+    {
+      "name": "boolean",
+      "label": "Boolean",
+      "storage_type": "Boolean"
+    },
+    {
+      "name": "integer",
+      "label": "Number (integer)",
+      "storage_type": "Int"
+    },
+    {
+      "name": "decimal",
+      "label": "Number (decimal)",
+      "storage_type": "Decimal"
+    },
+    {
+      "name": "float",
+      "label": "Number (float)",
+      "storage_type": "Float"
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "storage_type": "String"
+    },
+    {
+      "name": "telephone",
+      "label": "Telephone",
+      "storage_type": "String"
+    },
+    {
+      "name": "link",
+      "label": "Link",
+      "storage_type": "String"
+    },
+    {
+      "name": "datetime",
+      "label": "Date",
+      "storage_type": "DateTime"
+    },
+    {
+      "name": "list_string",
+      "label": "List (text)",
+      "storage_type": "String"
+    },
+    {
+      "name": "list_integer",
+      "label": "List (integer)",
+      "storage_type": "Int"
+    },
+    {
+      "name": "list_float",
+      "label": "List (float)",
+      "storage_type": "Float"
+    },
+    {
+      "name": "language",
+      "label": "Language",
+      "storage_type": "String"
+    },
+    {
+      "name": "reference",
+      "label": "Reference",
+      "storage_type": "Relation"
+    },
+    {
+      "name": "file",
+      "label": "File",
+      "storage_type": "Relation"
+    },
+    {
+      "name": "image",
+      "label": "Image",
+      "storage_type": "Relation"
+    }
+  ],
+  "content_types": [
+    {
+      "name": "file",
+      "label": "File",
+      "fields": [
+        {
+          "field_type": "string",
+          "name": "name",
+          "label": "File name"
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "label": "Image",
+      "fields": [
+        {
+          "field_type": "string_long",
+          "name": "name",
+          "label": "Image name"
+        }
+      ]
+    },
+    {
+      "name": "location",
+      "label": "Location",
+      "fields": [
+        {
+          "field_type": "text",
+          "name": "name",
+          "label": "Location name"
+        }
+      ]
+    },
+    {
+      "name": "event",
+      "label": "Event",
+      "fields": [
+        {
+          "field_type": "datetime",
+          "name": "field_event_date",
+          "label": "Event date"
+        },
+        {
+          "field_type": "list_string",
+          "name": "field_event_type",
+          "label": "Event type"
+        },
+        {
+          "field_type": "language",
+          "name": "field_language",
+          "label": "Language"
+        },
+        {
+          "field_type": "boolean",
+          "name": "field_featured",
+          "label": "Featured"
+        },
+        {
+          "field_type": "reference",
+          "name": "field_venue",
+          "label": "Location",
+          "relationModel": "location"
+        }
+      ]
+    },
+    {
+      "name": "conference",
+      "label": "Conference",
+      "fields": [
+        {
+          "field_type": "long_text",
+          "name": "field_agenda",
+          "label": "Agenda"
+        },
+        {
+          "field_type": "text_with_summary",
+          "name": "field_body",
+          "label": "Body (with summary)"
+        },
+        {
+          "field_type": "email",
+          "name": "field_contact_email",
+          "label": "Contact email"
+        },
+        {
+          "field_type": "telephone",
+          "name": "field_contact_phone",
+          "label": "Contact phone"
+        },
+        {
+          "field_type": "link",
+          "name": "field_registration_link",
+          "label": "Registration link"
+        },
+        {
+          "field_type": "decimal",
+          "name": "field_ticket_price",
+          "label": "Ticket price"
+        },
+        {
+          "field_type": "file",
+          "name": "field_program",
+          "label": "Program PDF",
+          "relationModel": "file"
+        }
+      ]
+    },
+    {
+      "name": "workshop",
+      "label": "Workshop",
+      "fields": [
+        {
+          "field_type": "float",
+          "name": "field_duration_hours",
+          "label": "Duration (hours)"
+        },
+        {
+          "field_type": "integer",
+          "name": "field_max_attendees",
+          "label": "Maximum attendees"
+        },
+        {
+          "field_type": "list_integer",
+          "name": "field_difficulty",
+          "label": "Difficulty level"
+        },
+        {
+          "field_type": "list_float",
+          "name": "field_discount_percent",
+          "label": "Discount rate"
+        },
+        {
+          "field_type": "image",
+          "name": "field_photo",
+          "label": "Photo",
+          "relationModel": "image"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,4 @@
 export const entityDefinitions = {
-  // -----------------------------------------------
-  // field_type – predefined list of field types
-  // -----------------------------------------------
   field_type: {
     table: 'field_type',
     primaryKey: 'id',
@@ -37,7 +34,7 @@ export const entityDefinitions = {
         label: 'Label',
         form: { type: 'text' },
       },
-      storage_type: {   // optional default storage type for this field type
+      storage_type: {
         type: 'VARCHAR',
         constraint: 20,
         null: false,
@@ -53,9 +50,6 @@ export const entityDefinitions = {
     formFields: ['name', 'label', 'storage_type'],
   },
 
-  // -----------------------------------------------
-  // content_type – unchanged
-  // -----------------------------------------------
   content_type: {
     table: 'content_type',
     primaryKey: 'id',
@@ -95,15 +89,11 @@ export const entityDefinitions = {
     allowedFilters: ['name', 'label'],
     listColumns: ['id', 'name', 'label', 'created_at'],
     formFields: ['name', 'label'],
-    // No foreign keys yet – junction table handles many-to-many
   },
 
-  // -----------------------------------------------
-  // content_type_field_type – junction table
-  // -----------------------------------------------
   content_type_field_type: {
     table: 'content_type_field_type',
-    primaryKey: 'id',          // optional synthetic key
+    primaryKey: 'id',
     compositeKey: false,
     useTimestamps: false,
     fields: {
@@ -141,12 +131,8 @@ export const entityDefinitions = {
       content_type_id: ['content_type', 'id'],
       field_type_id: ['field_type', 'id'],
     },
-    // optional: add a composite unique constraint on (content_type_id, field_type_id)
   },
 
-  // -----------------------------------------------
-  // field_configs – updated with field_type_id
-  // -----------------------------------------------
   field_configs: {
     table: 'field_configs',
     primaryKey: 'id',
@@ -172,7 +158,7 @@ export const entityDefinitions = {
         label: 'Content Type',
         form: { type: 'select', source: 'content_type' },
       },
-      field_type_id: {            // ← new foreign key
+      field_type_id: {
         type: 'INT',
         unsigned: true,
         null: false,
@@ -230,13 +216,10 @@ export const entityDefinitions = {
     formFields: ['content_type_id', 'field_type_id', 'name', 'label', 'storage_type', 'validation', 'filters'],
     foreignKeys: {
       content_type_id: ['content_type', 'id'],
-      field_type_id: ['field_type', 'id'],    // new FK
+      field_type_id: ['field_type', 'id'],
     },
   },
 
-  // -----------------------------------------------
-  // content_data – unchanged
-  // -----------------------------------------------
   content_data: {
     table: 'content_data',
     primaryKey: 'id',
@@ -271,56 +254,21 @@ export const entityDefinitions = {
     },
   },
 
-  // The value tables (field_value_text, integer, real, blob, content_reference)
-  // remain exactly the same – they reference field_configs and content_data.
   field_value_text: {
     table: 'field_value_text',
     primaryKey: 'id',
     compositeKey: false,
     useTimestamps: false,
     fields: {
-      id: {
-        type: 'INT',
-        unsigned: true,
-        auto: true,
-        cast: 'integer',
-        label: 'ID',
-        form: { type: 'hidden' },
-      },
-      content_data_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Content Data',
-        form: { type: 'select', source: 'content_data' },
-      },
-      field_config_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Field Config',
-        form: { type: 'select', source: 'field_configs' },
-      },
-      value: {
-        type: 'TEXT',
-        null: false,
-        cast: 'string',
-        validation: 'required|string',
-        label: 'Value',
-        form: { type: 'textarea' },
-      },
+      id: { type: 'INT', unsigned: true, auto: true, cast: 'integer', label: 'ID', form: { type: 'hidden' } },
+      content_data_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Content Data', form: { type: 'select', source: 'content_data' } },
+      field_config_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Field Config', form: { type: 'select', source: 'field_configs' } },
+      value: { type: 'TEXT', null: false, cast: 'string', validation: 'required|string', label: 'Value', form: { type: 'textarea' } },
     },
     allowedFilters: ['content_data_id', 'field_config_id'],
     listColumns: ['id', 'content_data_id', 'field_config_id', 'value'],
     formFields: ['content_data_id', 'field_config_id', 'value'],
-    foreignKeys: {
-      content_data_id: ['content_data', 'id'],
-      field_config_id: ['field_configs', 'id'],
-    },
+    foreignKeys: { content_data_id: ['content_data', 'id'], field_config_id: ['field_configs', 'id'] },
   },
 
   field_value_integer: {
@@ -329,48 +277,15 @@ export const entityDefinitions = {
     compositeKey: false,
     useTimestamps: false,
     fields: {
-      id: {
-        type: 'INT',
-        unsigned: true,
-        auto: true,
-        cast: 'integer',
-        label: 'ID',
-        form: { type: 'hidden' },
-      },
-      content_data_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Content Data',
-        form: { type: 'select', source: 'content_data' },
-      },
-      field_config_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Field Config',
-        form: { type: 'select', source: 'field_configs' },
-      },
-      value: {
-        type: 'INT',
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Value',
-        form: { type: 'number' },
-      },
+      id: { type: 'INT', unsigned: true, auto: true, cast: 'integer', label: 'ID', form: { type: 'hidden' } },
+      content_data_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Content Data', form: { type: 'select', source: 'content_data' } },
+      field_config_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Field Config', form: { type: 'select', source: 'field_configs' } },
+      value: { type: 'INT', null: false, cast: 'integer', validation: 'required|integer', label: 'Value', form: { type: 'number' } },
     },
     allowedFilters: ['content_data_id', 'field_config_id'],
     listColumns: ['id', 'content_data_id', 'field_config_id', 'value'],
     formFields: ['content_data_id', 'field_config_id', 'value'],
-    foreignKeys: {
-      content_data_id: ['content_data', 'id'],
-      field_config_id: ['field_configs', 'id'],
-    },
+    foreignKeys: { content_data_id: ['content_data', 'id'], field_config_id: ['field_configs', 'id'] },
   },
 
   field_value_real: {
@@ -379,49 +294,15 @@ export const entityDefinitions = {
     compositeKey: false,
     useTimestamps: false,
     fields: {
-      id: {
-        type: 'INT',
-        unsigned: true,
-        auto: true,
-        cast: 'integer',
-        label: 'ID',
-        form: { type: 'hidden' },
-      },
-      content_data_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Content Data',
-        form: { type: 'select', source: 'content_data' },
-      },
-      field_config_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Field Config',
-        form: { type: 'select', source: 'field_configs' },
-      },
-      value: {
-        type: 'DECIMAL',
-        constraint: '12,6',
-        null: false,
-        cast: 'float',
-        validation: 'required|decimal',
-        label: 'Value',
-        form: { type: 'number', step: 'any' },
-      },
+      id: { type: 'INT', unsigned: true, auto: true, cast: 'integer', label: 'ID', form: { type: 'hidden' } },
+      content_data_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Content Data', form: { type: 'select', source: 'content_data' } },
+      field_config_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Field Config', form: { type: 'select', source: 'field_configs' } },
+      value: { type: 'DECIMAL', constraint: '12,6', null: false, cast: 'float', validation: 'required|decimal', label: 'Value', form: { type: 'number', step: 'any' } },
     },
     allowedFilters: ['content_data_id', 'field_config_id'],
     listColumns: ['id', 'content_data_id', 'field_config_id', 'value'],
     formFields: ['content_data_id', 'field_config_id', 'value'],
-    foreignKeys: {
-      content_data_id: ['content_data', 'id'],
-      field_config_id: ['field_configs', 'id'],
-    },
+    foreignKeys: { content_data_id: ['content_data', 'id'], field_config_id: ['field_configs', 'id'] },
   },
 
   field_value_blob: {
@@ -430,48 +311,15 @@ export const entityDefinitions = {
     compositeKey: false,
     useTimestamps: false,
     fields: {
-      id: {
-        type: 'INT',
-        unsigned: true,
-        auto: true,
-        cast: 'integer',
-        label: 'ID',
-        form: { type: 'hidden' },
-      },
-      content_data_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Content Data',
-        form: { type: 'select', source: 'content_data' },
-      },
-      field_config_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Field Config',
-        form: { type: 'select', source: 'field_configs' },
-      },
-      value: {
-        type: 'BLOB',
-        null: false,
-        cast: 'string',
-        validation: 'required',
-        label: 'Value',
-        form: { type: 'text' },
-      },
+      id: { type: 'INT', unsigned: true, auto: true, cast: 'integer', label: 'ID', form: { type: 'hidden' } },
+      content_data_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Content Data', form: { type: 'select', source: 'content_data' } },
+      field_config_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Field Config', form: { type: 'select', source: 'field_configs' } },
+      value: { type: 'BLOB', null: false, cast: 'string', validation: 'required', label: 'Value', form: { type: 'text' } },
     },
     allowedFilters: ['content_data_id', 'field_config_id'],
     listColumns: ['id', 'content_data_id', 'field_config_id'],
     formFields: ['content_data_id', 'field_config_id', 'value'],
-    foreignKeys: {
-      content_data_id: ['content_data', 'id'],
-      field_config_id: ['field_configs', 'id'],
-    },
+    foreignKeys: { content_data_id: ['content_data', 'id'], field_config_id: ['field_configs', 'id'] },
   },
 
   content_reference: {
@@ -480,49 +328,14 @@ export const entityDefinitions = {
     compositeKey: false,
     useTimestamps: false,
     fields: {
-      id: {
-        type: 'INT',
-        unsigned: true,
-        auto: true,
-        cast: 'integer',
-        label: 'ID',
-        form: { type: 'hidden' },
-      },
-      content_data_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Content Data',
-        form: { type: 'select', source: 'content_data' },
-      },
-      field_config_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Field Config',
-        form: { type: 'select', source: 'field_configs' },
-      },
-      referenced_content_id: {
-        type: 'INT',
-        unsigned: true,
-        null: false,
-        cast: 'integer',
-        validation: 'required|integer',
-        label: 'Referenced Content',
-        form: { type: 'select', source: 'content_data' },
-      },
+      id: { type: 'INT', unsigned: true, auto: true, cast: 'integer', label: 'ID', form: { type: 'hidden' } },
+      content_data_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Content Data', form: { type: 'select', source: 'content_data' } },
+      field_config_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Field Config', form: { type: 'select', source: 'field_configs' } },
+      referenced_content_id: { type: 'INT', unsigned: true, null: false, cast: 'integer', validation: 'required|integer', label: 'Referenced Content', form: { type: 'select', source: 'content_data' } },
     },
     allowedFilters: ['content_data_id', 'field_config_id', 'referenced_content_id'],
     listColumns: ['id', 'content_data_id', 'field_config_id', 'referenced_content_id'],
     formFields: ['content_data_id', 'field_config_id', 'referenced_content_id'],
-    foreignKeys: {
-      content_data_id: ['content_data', 'id'],
-      field_config_id: ['field_configs', 'id'],
-      referenced_content_id: ['content_data', 'id'],
-    },
+    foreignKeys: { content_data_id: ['content_data', 'id'], field_config_id: ['field_configs', 'id'], referenced_content_id: ['content_data', 'id'] },
   },
 };

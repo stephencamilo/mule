@@ -1,3 +1,9 @@
+- var locales = locals && locals.locales ? locals.locales : {}
+- var currentLocale = locals && locals.currentLocale ? locals.currentLocale : 'en'
+- var flagEmoji = locals && locals.flagEmoji ? locals.flagEmoji : {}
+- var queryString = locals && locals.queryString ? locals.queryString : ''
+- var links = locals && locals.links ? locals.links : []
+
 nav(
   x-data="{ langOpen: false, mainOpen: false, mobileOpen: false }"
   class="bg-gradient-to-r from-white via-indigo-50/30 to-white shadow-md sticky top-0 z-50 border-b border-indigo-100 backdrop-blur-sm"
@@ -5,20 +11,17 @@ nav(
   .max-w-7xl.mx-auto.px-4(class="sm:px-6 lg:px-8")
     .flex.justify-between.h-16.items-center
 
-      //- Logo + Site Name
       .flex.items-center.shrink-0
         a(
           href="/"
           class="group flex items-center space-x-2 font-extrabold text-2xl text-indigo-600 hover:text-indigo-500 transition-colors"
         )
-          span.text-3xl(class="group-hover:scale-110 transition-transform duration-300") 🫏
-          span.hidden(class="sm:inline") Mule
+          span.text-3xl(class="group-hover:scale-110 transition-transform duration-300") 🐾
+          span.hidden(class="sm:inline") PetRecipes
 
-      //- Desktop menu
       .hidden(class="md:flex items-center")
         .inline-flex.rounded-full.border.border-indigo-200(class="bg-white/80 shadow-sm backdrop-blur")
 
-          //- Language selector
           .relative
             button(
               @click="langOpen = !langOpen"
@@ -50,10 +53,8 @@ nav(
                     if code === currentLocale
                       span.ml-auto.text-indigo-600 ✓
 
-          //- Divider
           .w-px.bg-indigo-200.my-2
 
-          //- Main menu
           .relative
             button(
               @click="mainOpen = !mainOpen"
@@ -100,7 +101,6 @@ nav(
                       class="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg mx-1"
                     ) 🍖 #{link.name}
 
-      //- Mobile hamburger
       .md-hidden.flex.items-center
         button(
           @click="mobileOpen = !mobileOpen"
@@ -109,7 +109,6 @@ nav(
           span.text-2xl(x-show="!mobileOpen") ☰
           span.text-2xl(x-show="mobileOpen") ✕
 
-    //- Mobile menu (full width)
     .md-hidden.pb-4.pt-2.border-t.border-gray-200.bg-white.rounded-b-2xl.shadow-2xl.backdrop-blur-sm(
       x-show="mobileOpen"
       @click.away="mobileOpen = false"

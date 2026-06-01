@@ -1,4 +1,3 @@
-//- layouts/main.pug
 include ../partials/meta
 
 doctype html
@@ -46,10 +45,8 @@ html(lang=locale || 'en' class="scroll-smooth")
 
   body(class="bg-gradient-to-br from-slate-50 via-indigo-50/20 to-white min-h-screen flex flex-col antialiased font-sans text-slate-700")
 
-    //- Navbar (the Alpine.js component)
     include ../partials/navbar
 
-    //- Alert (success/error messages)
     .relative.z-10
       include ../partials/alert
 
@@ -58,7 +55,6 @@ html(lang=locale || 'en' class="scroll-smooth")
         .w-full.max-w-7xl.mx-auto.px-4(class="sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10 animate-fade-in")
           block content
 
-    //- Footer
     include ../partials/footer
 
     block scripts

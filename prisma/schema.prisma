@@ -8,6 +8,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model content_type_field_type {
+  id  Int @id @default(autoincrement())
+  content_type_id  Int
+  field_type_id  Int
+  content_type  content_type @relation("content_type", fields: [content_type_id], references: [id])
+  field_type  field_type @relation("field_type", fields: [field_type_id], references: [id])
+  // @@reverse@@
+  @@map("content_type_field_type")
+}
+
 model field_value_text {
   id  Int @id @default(autoincrement())
   content_data_id  Int
@@ -67,6 +77,7 @@ model content_reference {
 model field_configs {
   id  Int @id @default(autoincrement())
   content_type_id  Int
+  field_type_id  Int
   name  String
   label  String
   storage_type  String
@@ -75,6 +86,7 @@ model field_configs {
   created_at  DateTime @default(now()) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")
   content_type  content_type @relation("content_type", fields: [content_type_id], references: [id])
+  field_type  field_type @relation("field_type", fields: [field_type_id], references: [id])
   field_value_text_field_config  field_value_text[]  @relation("field_config")
   field_value_integer_field_config  field_value_integer[]  @relation("field_config")
   field_value_real_field_config  field_value_real[]  @relation("field_config")
@@ -98,12 +110,25 @@ model content_data {
   @@map("content_data")
 }
 
+model field_type {
+  id  Int @id @default(autoincrement())
+  name  String @unique
+  label  String
+  storage_type  String
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  content_type_field_type_field_type  content_type_field_type[]  @relation("field_type")
+  field_configs_field_type  field_configs[]  @relation("field_type")
+  @@map("field_type")
+}
+
 model content_type {
   id  Int @id @default(autoincrement())
   name  String @unique
   label  String
   created_at  DateTime @default(now()) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")
+  content_type_field_type_content_type  content_type_field_type[]  @relation("content_type")
   field_configs_content_type  field_configs[]  @relation("content_type")
   content_data_content_type  content_data[]  @relation("content_type")
   @@map("content_type")

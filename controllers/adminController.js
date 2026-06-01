@@ -1,10 +1,6 @@
 import { entityDefinitions } from '../config/entityDefinitions.js';
 import { EntityModel } from '../models/EntityModel.js';
 
-// ---------------------------------------------------------------------------
-// Helper functions (unchanged)
-// ---------------------------------------------------------------------------
-
 function loadDefinition(entityKey) {
   const def = entityDefinitions[entityKey];
   if (!def) {
@@ -31,7 +27,6 @@ function extractId(ids, def) {
 
 async function prepareFormOptionsForEntity(entityKey, def) {
   const options = {};
-
   for (const [fieldName, fieldConfig] of Object.entries(def.fields)) {
     const formType = fieldConfig.form?.type;
     if (formType === 'select') {
@@ -40,7 +35,6 @@ async function prepareFormOptionsForEntity(entityKey, def) {
         const sourceItems = await sourceEntity.findAll();
         const sourceDef = loadDefinition(fieldConfig.form.source);
         const pk = sourceDef.primaryKey;
-
         options[fieldName] = {};
         for (const item of sourceItems) {
           const value = item[pk];
@@ -64,22 +58,16 @@ async function prepareFormOptionsForEntity(entityKey, def) {
 
 function buildFormFieldsData(def, record, isEdit, entityKey, selectOptions) {
   if (!def.formFields) return [];
-
   return def.formFields.map(fieldName => {
     const fieldConfig = def.fields[fieldName];
     const type = fieldConfig.form?.type ?? 'text';
     const label = fieldConfig.label ?? fieldName.replace(/_/g, ' ');
     const value = record?.[fieldName] ?? '';
     const isReadonly = isEdit && (fieldConfig.form?.readonlyOnEdit ?? false);
-
-    const baseClass = `block w-full rounded-lg border-gray-200 shadow-sm
-                        focus:border-indigo-400 focus:ring focus:ring-indigo-200
-                        focus:ring-opacity-50 transition duration-200`;
+    const baseClass = `block w-full rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-200`;
     const readonlyClass = isReadonly ? ' bg-gray-50 cursor-not-allowed' : '';
     const inputClass = baseClass + readonlyClass;
-
     let html = '';
-
     switch (type) {
       case 'select': {
         const opts = selectOptions[fieldName] ?? {};
@@ -101,48 +89,35 @@ function buildFormFieldsData(def, record, isEdit, entityKey, selectOptions) {
         html = `<input type="${type}" name="${fieldName}" value="${value}" class="${inputClass}"${stepAttr}${placeholder} ${isReadonly ? 'readonly' : ''} />`;
       }
     }
-
     return { label, html };
   });
 }
 
 function buildFilterFields(def, queryParams) {
   const filters = {};
-
   for (const fieldName of (def.allowedFilters ?? [])) {
     const fieldDef = def.fields[fieldName];
     if (!fieldDef) continue;
-
     const filterType = mapFieldToFilterType(fieldDef);
     const selected = queryParams[fieldName] ?? '';
-
-    const filterConfig = {
-      label: fieldDef.label ?? fieldName.replace(/_/g, ' '),
-      type: filterType,
-      selected,
-    };
-
+    const filterConfig = { label: fieldDef.label ?? fieldName.replace(/_/g, ' '), type: filterType, selected };
     if (filterType === 'select') {
       filterConfig.options = '__dynamic__';
     } else if (filterType === 'number' && (fieldDef.type === 'DECIMAL')) {
       filterConfig.step = 'any';
     }
-
     filters[fieldName] = filterConfig;
   }
-
   return filters;
 }
 
 function mapFieldToFilterType(fieldDef) {
   const formType = fieldDef.form?.type ?? '';
   if (formType === 'select') return 'select';
-
   const storageType = fieldDef.type?.toUpperCase() ?? 'VARCHAR';
   switch (storageType) {
     case 'INT': case 'TINYINT': case 'SMALLINT': case 'MEDIUMINT': case 'BIGINT':
-    case 'FLOAT': case 'DOUBLE': case 'DECIMAL':
-      return 'number';
+    case 'FLOAT': case 'DOUBLE': case 'DECIMAL': return 'number';
     case 'DATE': return 'date';
     case 'DATETIME': return 'datetime-local';
     case 'TIME': return 'time';
@@ -151,18 +126,12 @@ function mapFieldToFilterType(fieldDef) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Route handlers (read entityKey from req.params.entity)
-// ---------------------------------------------------------------------------
-
 export function index() {
   return async (req, res, next) => {
-    console.log('DEBUG index – req.params:', req.params);
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const entity = new EntityModel(entityKey);
-
       const where = {};
       for (const fieldName of (def.allowedFilters ?? [])) {
         const val = req.query[fieldName];
@@ -178,14 +147,12 @@ export function index() {
           }
         }
       }
-
       const items = await entity.findAll(where);
-
       const filters = buildFilterFields(def, req.query);
       for (const [fieldName, filter] of Object.entries(filters)) {
         if (filter.options === '__dynamic__') {
           const fieldDef = def.fields[fieldName];
-          if (!fieldDef?.form?.source) continue;               // ← guard added
+          if (!fieldDef?.form?.source) continue;
           const sourceEntity = new EntityModel(fieldDef.form.source);
           const sourceItems = await sourceEntity.findAll();
           const sourceDef = loadDefinition(fieldDef.form.source);
@@ -199,7 +166,6 @@ export function index() {
           filter.options = opts;
         }
       }
-
       res.render('admin/generic_list', {
         entityKey,
         items,
@@ -218,12 +184,11 @@ export function index() {
 
 export function newForm() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const selectOptions = await prepareFormOptionsForEntity(entityKey, def);
       const formFields = buildFormFieldsData(def, null, false, entityKey, selectOptions);
-
       res.render('admin/generic_form', {
         entityKey,
         formUrl: `/admin/${entityKey}/create`,
@@ -231,20 +196,17 @@ export function newForm() {
         formFields,
         locale: req.locale ?? 'en',
       });
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   };
 }
 
 export function create() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const entity = new EntityModel(entityKey);
       const data = { ...req.body };
       delete data._csrf;
-
       await entity.insert(data);
       res.redirect(`/admin/${entityKey}`);
     } catch (err) {
@@ -255,19 +217,16 @@ export function create() {
 
 export function edit() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const ids = Object.values(req.params);
       const id = extractId(ids, def);
-
       const entity = new EntityModel(entityKey);
       const record = await entity.find(id);
       if (!record) return res.status(404).send('Not found');
-
       const selectOptions = await prepareFormOptionsForEntity(entityKey, def);
       const formFields = buildFormFieldsData(def, record, true, entityKey, selectOptions);
-
       res.render('admin/generic_form', {
         entityKey,
         formUrl: `/admin/${entityKey}/update/${ids.join('/')}`,
@@ -275,24 +234,20 @@ export function edit() {
         formFields,
         locale: req.locale ?? 'en',
       });
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   };
 }
 
 export function update() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const ids = Object.values(req.params);
       const id = extractId(ids, def);
-
       const entity = new EntityModel(entityKey);
       const data = { ...req.body };
       delete data._csrf;
-
       await entity.update(id, data);
       res.redirect(`/admin/${entityKey}`);
     } catch (err) {
@@ -303,41 +258,35 @@ export function update() {
 
 export function deleteConfirm() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const ids = Object.values(req.params);
       const id = extractId(ids, def);
-
       const entity = new EntityModel(entityKey);
       const record = await entity.find(id);
       if (!record) return res.status(404).send('Not found');
-
       res.render('admin/generic_confirm_delete', {
         entityKey,
         record,
         deleteUrl: `/admin/${entityKey}/delete/${ids.join('/')}`,
+        def,
         locale: req.locale ?? 'en',
       });
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   };
 }
 
 export function deleteEntity() {
   return async (req, res, next) => {
-    const entityKey = req.params.entity;
     try {
+      const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
       const ids = Object.values(req.params);
       const id = extractId(ids, def);
-
       const entity = new EntityModel(entityKey);
       await entity.delete(id);
       res.redirect(`/admin/${entityKey}`);
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   };
 }

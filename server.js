@@ -17,7 +17,6 @@ app.use('/api', apiRouter);
 app.get('/', (req, res) => res.redirect('/admin/content_type'));
 app.get('/admin', (req, res) => res.redirect('/admin/content_type'));
 
-// Admin parameterised routes – the only admin routes
 app.get('/admin/:entity',               adminController.index());
 app.get('/admin/:entity/new',           adminController.newForm());
 app.post('/admin/:entity/create',       adminController.create());

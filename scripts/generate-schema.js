@@ -14,11 +14,10 @@ const schemaPath = resolve(__dirname, '..', 'prisma', 'schema.prisma');
 const dbPath = resolve(__dirname, '..', 'dev.db');
 
 if (fresh) {
-  if (existsSync(schemaPath)) unlinkSync(schemaPath);
-  if (existsSync(dbPath)) unlinkSync(dbPath);
+  if (existsSync(schemaPath)) { unlinkSync(schemaPath); console.log(`Deleted ${schemaPath}`); }
+  if (existsSync(dbPath)) { unlinkSync(dbPath); console.log(`Deleted ${dbPath}`); }
 }
 
-// 1. Resolve table order
 const tableToEntity = {};
 for (const [entity, config] of Object.entries(entityDefinitions)) {
   tableToEntity[config.table] = entity;
@@ -50,7 +49,6 @@ function topologicalSort(g, nodes) {
 }
 const order = topologicalSort(graph, Object.keys(entityDefinitions));
 
-// 2. Map types
 function mapPrismaType(meta) {
   const type = meta.type.toUpperCase();
   if (type.startsWith('INT')) return 'Int';
@@ -60,7 +58,6 @@ function mapPrismaType(meta) {
   return 'String';
 }
 
-// 3. Build model strings & collect reverse relations
 const modelStrings = {};
 const reverseRelations = {};
 
@@ -68,7 +65,6 @@ for (const entity of order) {
   const config = entityDefinitions[entity];
   let modelStr = `model ${entity} {\n`;
 
-  // Fields
   for (const [fieldName, meta] of Object.entries(config.fields)) {
     const prismaType = mapPrismaType(meta);
     let line = `  ${fieldName}  ${prismaType}`;
@@ -79,7 +75,6 @@ for (const entity of order) {
     modelStr += line;
   }
 
-  // Timestamps
   if (config.useTimestamps) {
     const created = config.createdField || 'created_at';
     const updated = config.updatedField || 'updated_at';
@@ -87,14 +82,12 @@ for (const entity of order) {
     if (updated) modelStr += `  ${updated}  DateTime @updatedAt @map("${updated}")\n`;
   }
 
-  // Forward relations
   if (config.foreignKeys) {
     for (const [fieldName, [refTable, refColumn]] of Object.entries(config.foreignKeys)) {
       const refEntity = tableToEntity[refTable];
       if (refEntity) {
         const relationField = fieldName.replace(/_id$/, '');
         modelStr += `  ${relationField}  ${refEntity} @relation("${relationField}", fields: [${fieldName}], references: [${refColumn}])\n`;
-
         if (!reverseRelations[refEntity]) reverseRelations[refEntity] = [];
         reverseRelations[refEntity].push({ childEntity: entity, relationName: relationField });
       }
@@ -107,22 +100,15 @@ for (const entity of order) {
   modelStrings[entity] = modelStr;
 }
 
-// 4. Insert reverse fields with unique names
 for (const [parentEntity, relations] of Object.entries(reverseRelations)) {
   if (!modelStrings[parentEntity]) continue;
-
   const reverseLines = relations.map(r => {
     const fieldName = `${r.childEntity}_${r.relationName}`;
     return `  ${fieldName}  ${r.childEntity}[]  @relation("${r.relationName}")`;
   }).join('\n');
-
-  modelStrings[parentEntity] = modelStrings[parentEntity].replace(
-    '  // @@reverse@@',
-    reverseLines
-  );
+  modelStrings[parentEntity] = modelStrings[parentEntity].replace('  // @@reverse@@', reverseLines);
 }
 
-// 5. Assemble final schema
 let schema = `// Auto-generated schema
 generator client {
   provider = "prisma-client-js"

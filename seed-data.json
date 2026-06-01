@@ -1,0 +1,139 @@
+{
+  "content": [
+    {
+      "content_type": "file",
+      "rows": [
+        { "id": 1, "name": "program_overview.pdf" },
+        { "id": 2, "name": "sponsorship_package.pdf" },
+        { "id": 3, "name": "workshop_materials.zip" }
+      ]
+    },
+    {
+      "content_type": "image",
+      "rows": [
+        { "id": 1, "name": "conference_main_photo.jpg" },
+        { "id": 2, "name": "workshop_intensive.jpg" },
+        { "id": 3, "name": "networking_event.jpg" }
+      ]
+    },
+    {
+      "content_type": "location",
+      "rows": [
+        { "id": 1, "name": "Grand Ballroom" },
+        { "id": 2, "name": "Innovation Lab" },
+        { "id": 3, "name": "Rooftop Terrace" }
+      ]
+    },
+    {
+      "content_type": "event",
+      "rows": [
+        {
+          "id": 1,
+          "field_short_description": "Annual tech conference for developers.",
+          "field_code": "TECHCONF2027",
+          "field_event_date": "2027-09-15T09:00:00Z",
+          "field_event_type": "conference",
+          "field_featured": true,
+          "field_language": "en",
+          "field_venue": 1,
+          "field_photo": 1
+        },
+        {
+          "id": 2,
+          "field_short_description": "Intensive hands-on AI workshop.",
+          "field_code": "AIWORKSHOP2028",
+          "field_event_date": "2028-03-22T14:00:00Z",
+          "field_event_type": "workshop",
+          "field_featured": false,
+          "field_language": "es",
+          "field_venue": 2,
+          "field_photo": 2
+        },
+        {
+          "id": 3,
+          "field_short_description": "Community meetup for local startups.",
+          "field_code": "STARTUPHUB2028",
+          "field_event_date": "2028-06-10T18:30:00Z",
+          "field_event_type": "meetup",
+          "field_featured": true,
+          "field_language": "en",
+          "field_venue": 3,
+          "field_photo": 3
+        }
+      ]
+    },
+    {
+      "content_type": "conference",
+      "rows": [
+        {
+          "id": 1,
+          "field_body": "Join us for two days of cutting-edge talks and hands-on workshops...",
+          "field_agenda": "Day 1: Keynotes, Day 2: Breakout sessions, Day 3: Hackathon...",
+          "field_address": "123 Innovation Drive, San Francisco, CA 94105",
+          "field_contact_email": "info@techconf.example.com",
+          "field_contact_phone": "+1-555-0100",
+          "field_registration_link": "https://example.com/register",
+          "field_ticket_price": "299.99",
+          "field_max_attendees": 500,
+          "field_discount_percent": 15.5,
+          "field_program": 1
+        },
+        {
+          "id": 2,
+          "field_body": "A summit on future mobility and autonomous vehicles...",
+          "field_agenda": "Morning: panels, Afternoon: test drives...",
+          "field_address": "456 Mobility Blvd, Detroit, MI 48226",
+          "field_contact_email": "hello@mobilitysummit.com",
+          "field_contact_phone": "+1-555-0111",
+          "field_registration_link": "https://mobilitysummit.com/signup",
+          "field_ticket_price": "499.00",
+          "field_max_attendees": 800,
+          "field_discount_percent": 10.0,
+          "field_program": 2
+        },
+        {
+          "id": 3,
+          "field_body": "Exploring the intersection of design and technology...",
+          "field_agenda": "Workshops on design thinking, prototyping sessions...",
+          "field_address": "789 Creative Lane, Austin, TX 73301",
+          "field_contact_email": "info@designconf.example.org",
+          "field_contact_phone": "+1-555-0122",
+          "field_registration_link": "https://designconf.example.org/join",
+          "field_ticket_price": "199.50",
+          "field_max_attendees": 300,
+          "field_discount_percent": 20.0,
+          "field_program": 3
+        }
+      ]
+    },
+    {
+      "content_type": "workshop",
+      "rows": [
+        {
+          "id": 1,
+          "field_duration_hours": 3.5,
+          "field_max_attendees": 30,
+          "field_difficulty": 4,
+          "field_discount_percent": 10.0,
+          "field_photo": 1
+        },
+        {
+          "id": 2,
+          "field_duration_hours": 2.0,
+          "field_max_attendees": 20,
+          "field_difficulty": 2,
+          "field_discount_percent": 5.0,
+          "field_photo": 2
+        },
+        {
+          "id": 3,
+          "field_duration_hours": 6.0,
+          "field_max_attendees": 15,
+          "field_difficulty": 5,
+          "field_discount_percent": 0.0,
+          "field_photo": 3
+        }
+      ]
+    }
+  ]
+}
