@@ -11,15 +11,9 @@ function loadDefinition(entityKey) {
   return def;
 }
 
-/**
- * Extracts primary key value(s) from an array of ID strings.
- * For single primary key: returns a number (first numeric value found).
- * For composite key: returns an object { key1: value1, key2: value2 }.
- */
 function extractId(ids, def) {
   const pk = def.primaryKey;
   if (Array.isArray(pk)) {
-    // Composite key: need exactly pk.length ids
     if (ids.length === pk.length) {
       const result = {};
       for (let i = 0; i < pk.length; i++) {
@@ -29,7 +23,6 @@ function extractId(ids, def) {
       return result;
     }
   } else {
-    // Single primary key: take the first value that is a number (excluding entity key)
     const numericId = ids.find(id => !isNaN(Number(id)) && String(id).trim() !== '');
     if (numericId !== undefined) return Number(numericId);
   }
@@ -139,9 +132,44 @@ function mapFieldToFilterType(fieldDef) {
   }
 }
 
-// --------------------------------------------------------------
-// CONTROLLER FUNCTIONS
-// --------------------------------------------------------------
+async function enrichItemsWithDisplayValues(items, def) {
+  if (!items.length) return items;
+  const foreignKeyFields = [];
+  for (const [fieldName, fieldConfig] of Object.entries(def.fields)) {
+    if (fieldConfig.form?.source) {
+      foreignKeyFields.push(fieldName);
+    }
+  }
+  if (!foreignKeyFields.length) return items;
+
+  const cache = {};
+  for (const field of foreignKeyFields) {
+    cache[field] = {};
+    const sourceKey = def.fields[field].form.source;
+    const sourceDef = loadDefinition(sourceKey);
+    const sourceEntity = new EntityModel(sourceKey);
+    const allSourceItems = await sourceEntity.findAll();
+    const labelField = sourceDef.fields.label ? 'label' : (sourceDef.fields.name ? 'name' : sourceDef.primaryKey);
+    for (const src of allSourceItems) {
+      const idValue = src[sourceDef.primaryKey];
+      const display = src[labelField] ?? src[sourceDef.primaryKey] ?? 'Unknown';
+      cache[field][idValue] = String(display);
+    }
+  }
+
+  for (const item of items) {
+    item._display = {};
+    for (const field of foreignKeyFields) {
+      const idVal = item[field];
+      if (idVal != null && cache[field][idVal]) {
+        item._display[field] = cache[field][idVal];
+      } else {
+        item._display[field] = idVal;
+      }
+    }
+  }
+  return items;
+}
 
 export function index() {
   return async (req, res, next) => {
@@ -164,7 +192,8 @@ export function index() {
           }
         }
       }
-      const items = await entity.findAll(where);
+      let items = await entity.findAll(where);
+      items = await enrichItemsWithDisplayValues(items, def);
       const filters = buildFilterFields(def, req.query);
       for (const [fieldName, filter] of Object.entries(filters)) {
         if (filter.options === '__dynamic__') {
@@ -237,7 +266,6 @@ export function edit() {
     try {
       const entityKey = req.params.entity;
       const def = loadDefinition(entityKey);
-      // Extract all values except the entity key itself
       const allParams = Object.values(req.params);
       const ids = allParams.filter(p => p !== entityKey && p !== undefined && p !== '');
       const id = extractId(ids, def);
