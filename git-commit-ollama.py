@@ -38,9 +38,10 @@ def generate_commit_message(diff, attempt=1):
         return None
 
 def main():
-    # 1. Get git diff
+    # 1. Get all changes since last commit (both staged and unstaged)
+    #    This ensures the generated message describes everything that will be committed.
     try:
-        diff = run_cmd("git diff")
+        diff = run_cmd("git diff HEAD")
     except subprocess.CalledProcessError as e:
         print(f"Error running git diff: {e}", file=sys.stderr)
         sys.exit(1)

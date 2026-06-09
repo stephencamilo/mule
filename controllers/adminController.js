@@ -134,6 +134,7 @@ function mapFieldToFilterType(fieldDef) {
 
 async function enrichItemsWithDisplayValues(items, def) {
   if (!items.length) return items;
+
   const foreignKeyFields = [];
   for (const [fieldName, fieldConfig] of Object.entries(def.fields)) {
     if (fieldConfig.form?.source) {
@@ -148,12 +149,102 @@ async function enrichItemsWithDisplayValues(items, def) {
     const sourceKey = def.fields[field].form.source;
     const sourceDef = loadDefinition(sourceKey);
     const sourceEntity = new EntityModel(sourceKey);
-    const allSourceItems = await sourceEntity.findAll();
-    const labelField = sourceDef.fields.label ? 'label' : (sourceDef.fields.name ? 'name' : sourceDef.primaryKey);
-    for (const src of allSourceItems) {
-      const idValue = src[sourceDef.primaryKey];
-      const display = src[labelField] ?? src[sourceDef.primaryKey] ?? 'Unknown';
-      cache[field][idValue] = String(display);
+    let allSourceItems = await sourceEntity.findAll();
+
+    // -----------------------------------------------------------
+    // Special handling for content_data: show the real name field
+    // -----------------------------------------------------------
+    if (sourceKey === 'content_data') {
+      // 1. Group content_data records by content_type_id
+      const grouped = {};
+      for (const src of allSourceItems) {
+        const ctId = src.content_type_id;
+        if (!ctId) continue;
+        if (!grouped[ctId]) grouped[ctId] = [];
+        grouped[ctId].push(src.id);
+      }
+
+      // 2. Fetch content type names using raw SQL
+      const contentTypeIds = Object.keys(grouped).map(Number);
+      let contentTypeNames = {};
+      if (contentTypeIds.length) {
+        const contentTypes = await EntityModel.prisma.$queryRawUnsafe(
+          `SELECT id, name, label FROM content_type WHERE id IN (${contentTypeIds.join(',')})`
+        );
+        contentTypeNames = Object.fromEntries(
+          contentTypes.map(ct => [ct.id, ct.name || ct.label || ct.id])
+        );
+      }
+
+      // 3. Find field_configs for the "name" field of each content type (include storage_type)
+      const fieldConfigs = await EntityModel.prisma.$queryRawUnsafe(
+        `SELECT id, content_type_id, storage_type FROM field_configs WHERE content_type_id IN (${contentTypeIds.join(',')}) AND name = 'name'`
+      );
+      const fieldConfigMap = {};  // content_type_id → { id, storage_type }
+      for (const fc of fieldConfigs) {
+        fieldConfigMap[fc.content_type_id] = { id: fc.id, storage_type: fc.storage_type };
+      }
+
+      // 4. Fetch the name values from the correct value table(s)
+      const allContentDataIds = allSourceItems.map(src => src.id);
+      const nameMap = {};
+
+      if (allContentDataIds.length && Object.keys(fieldConfigMap).length) {
+        // Separate field_config_ids by storage_type
+        const textFieldConfigs = [];
+        const intFieldConfigs = [];
+        const realFieldConfigs = [];
+        const blobFieldConfigs = [];
+
+        for (const ctId of Object.keys(fieldConfigMap)) {
+          const { id, storage_type } = fieldConfigMap[ctId];
+          switch (storage_type) {
+            case 'text': textFieldConfigs.push(id); break;
+            case 'integer': intFieldConfigs.push(id); break;
+            case 'real': realFieldConfigs.push(id); break;
+            case 'blob': blobFieldConfigs.push(id); break;
+          }
+        }
+
+        // Helper to query each table
+        const fetchValues = async (table, fcIds) => {
+          if (!fcIds.length) return [];
+          return await EntityModel.prisma.$queryRawUnsafe(
+            `SELECT content_data_id, value FROM ${table} WHERE content_data_id IN (${allContentDataIds.join(',')}) AND field_config_id IN (${fcIds.join(',')})`
+          );
+        };
+
+        const [textVals, intVals, realVals, blobVals] = await Promise.all([
+          fetchValues('field_value_text', textFieldConfigs),
+          fetchValues('field_value_integer', intFieldConfigs),
+          fetchValues('field_value_real', realFieldConfigs),
+          fetchValues('field_value_blob', blobFieldConfigs),
+        ]);
+
+        const allValues = [...textVals, ...intVals, ...realVals, ...blobVals];
+
+        for (const row of allValues) {
+          if (!nameMap[row.content_data_id]) {
+            nameMap[row.content_data_id] = String(row.value);
+          }
+        }
+      }
+
+      // 5. Build the display string
+      for (const src of allSourceItems) {
+        const ctName = contentTypeNames[src.content_type_id] || 'Content';
+        const nameValue = nameMap[src.id];
+        const display = nameValue || `${ctName} #${src.id}`;
+        cache[field][src.id] = display;
+      }
+    } else {
+      // Normal case: use label/name/primaryKey
+      const labelField = sourceDef.fields.label ? 'label' : (sourceDef.fields.name ? 'name' : sourceDef.primaryKey);
+      for (const src of allSourceItems) {
+        const idValue = src[sourceDef.primaryKey];
+        const display = src[labelField] ?? src[sourceDef.primaryKey] ?? 'Unknown';
+        cache[field][idValue] = String(display);
+      }
     }
   }
 

@@ -3,19 +3,15 @@ import { entityDefinitions } from '../config/entityDefinitions.js';
 
 const prisma = new PrismaClient();
 
-function getModelName(key) {
-  // Not needed for raw queries, but keep if used elsewhere
-  const pascal = key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
-  return pascal.endsWith('s') && !pascal.endsWith('ss') ? pascal.slice(0, -1) : pascal;
-}
-
 export class EntityModel {
+  static prisma = prisma;   // <-- this line exposes the instance
+
   constructor(entityKey) {
     const def = entityDefinitions[entityKey];
     if (!def) throw new Error(`Unknown entity: ${entityKey}`);
     this.entityKey = entityKey;
     this.def = def;
-    this.table = def.table;                 // actual table name
+    this.table = def.table;
     this.primaryKey = Array.isArray(def.primaryKey) ? def.primaryKey : [def.primaryKey];
     this.allowedFields = Object.entries(def.fields)
       .filter(([fieldName, meta]) => !this.primaryKey.includes(fieldName) && !meta.auto)
@@ -29,7 +25,6 @@ export class EntityModel {
     for (const [fieldName, meta] of Object.entries(def.fields)) {
       if (meta.validation) this.validationRules[fieldName] = meta.validation;
     }
-    // No more this.model = prisma[...]
   }
 
   _pickAllowed(data) {
@@ -40,11 +35,10 @@ export class EntityModel {
     return clean;
   }
 
-  // Build WHERE clause from object
   _buildWhereClause(where) {
     const keys = Object.keys(where);
     if (keys.length === 0) return { sql: '', params: [] };
-    const conditions = keys.map((k, i) => `${k} = $${i+1}`);
+    const conditions = keys.map((k, i) => `${k} = $${i + 1}`);
     return {
       sql: `WHERE ${conditions.join(' AND ')}`,
       params: keys.map(k => where[k])
@@ -54,8 +48,6 @@ export class EntityModel {
   async findAll(where = {}) {
     const { sql: whereSql, params } = this._buildWhereClause(where);
     const query = `SELECT * FROM ${this.table} ${whereSql}`;
-    // Use $queryRawUnsafe or parameterized: $queryRaw requires template literal
-    // For safety with dynamic table/column names, use $queryRawUnsafe + params
     const result = await prisma.$queryRawUnsafe(query, ...params);
     return result;
   }
@@ -72,9 +64,16 @@ export class EntityModel {
 
   async insert(data) {
     const clean = this._pickAllowed(data);
-    const fields = Object.keys(clean);
-    const values = Object.values(clean);
-    const placeholders = values.map((_, i) => `$${i+1}`).join(', ');
+    const fields = [...Object.keys(clean)];
+    const values = [...Object.values(clean)];
+
+    if (this.useTimestamps) {
+      const now = new Date().toISOString();
+      fields.push(this.createdField, this.updatedField);
+      values.push(now, now);
+    }
+
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const query = `
       INSERT INTO ${this.table} (${fields.join(', ')})
       VALUES (${placeholders})
@@ -90,12 +89,20 @@ export class EntityModel {
       throw new Error('update() with composite key is not supported');
     }
     const pk = this.primaryKey[0];
-    const setClause = Object.keys(clean).map((k, i) => `${k} = $${i+1}`).join(', ');
-    const values = [...Object.values(clean), id];
+    let fields = Object.keys(clean);
+    let values = [...Object.values(clean)];
+
+    if (this.useTimestamps) {
+      fields.push(this.updatedField);
+      values.push(new Date().toISOString());
+    }
+
+    const setClause = fields.map((k, i) => `${k} = $${i + 1}`).join(', ');
+    values.push(id);
     const query = `
       UPDATE ${this.table}
       SET ${setClause}
-      WHERE ${pk} = $${Object.keys(clean).length + 1}
+      WHERE ${pk} = $${fields.length + 1}
       RETURNING *
     `;
     const rows = await prisma.$queryRawUnsafe(query, ...values);
