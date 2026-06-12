@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>GPON Quiz Interativo | Claro Treinamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        .transition-fade { transition: all 0.2s ease; }
+        .timer-fixed { position: fixed; top: 16px; right: 16px; z-index: 50; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased">
+
+<div x-data="quizApp()" x-init="initQuestions()" class="max-w-3xl mx-auto px-4 py-6 md:py-10 min-h-screen flex flex-col">
+
+    <!-- Timer fixo -->
+    <div class="timer-fixed bg-white/90 backdrop-blur-sm border border-red-200 rounded-xl px-4 py-2 shadow-md flex items-center gap-2 text-red-700 font-bold" x-show="!quizFinished">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span x-text="formatTime(elapsedSeconds)"></span>
+    </div>
+
+    <!-- Cabeçalho -->
+    <div class="text-center border-b border-red-200 pb-4 mb-5">
+        <div class="flex justify-between items-center flex-wrap gap-2">
+            <span class="text-2xl font-bold text-red-700">Claro</span>
+            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">GPON - Treinamento Técnico</span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800 mt-2">Quiz Interativo</h1>
+        <p class="text-red-600 text-sm">Selecione a resposta → feedback imediato (verde = acerto / vermelho = erro)</p>
+        <p class="text-xs text-gray-500">Acertos avançam automaticamente | 100 questões | Opções A e B</p>
+    </div>
+
+    <!-- Progresso -->
+    <div class="flex justify-between items-center text-sm font-medium mb-2">
+        <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full">Questão <span x-text="currentIndex + 1"></span> de <span x-text="totalQuestions"></span></span>
+        <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">✅ Acertos: <span x-text="score"></span></span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2 mb-5">
+        <div class="bg-red-600 h-2 rounded-full transition-all duration-300" :style="`width: ${((currentIndex + 1) / totalQuestions) * 100}%`"></div>
+    </div>
+
+    <!-- Pergunta -->
+    <div class="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden" x-show="questions.length && !quizFinished">
+        <div class="p-6 md:p-8">
+            <div class="text-lg md:text-xl font-bold text-slate-800 mb-5" x-text="`${currentIndex+1}. ${currentQuestion.text}`"></div>
+            <div class="space-y-3">
+                <template x-for="(opt, idx) in currentQuestion.options" :key="idx">
+                    <label class="flex items-start gap-3 p-3 rounded-xl border transition-all duration-150 cursor-pointer"
+                           :class="{
+                               'border-green-400 bg-green-50': feedbackType === 'correct' && selectedAnswer === String.fromCharCode(65+idx),
+                               'border-red-400 bg-red-50': feedbackType === 'wrong' && selectedAnswer === String.fromCharCode(65+idx),
+                               'border-gray-200 hover:bg-red-50': !(feedbackType && selectedAnswer === String.fromCharCode(65+idx))
+                           }">
+                        <input type="radio" :name="`q${currentIndex}`" :value="String.fromCharCode(65+idx)" x-model="selectedAnswer" @change="checkAnswer()" class="mt-1 w-4 h-4 text-red-600 focus:ring-red-500" :disabled="disableOptions">
+                        <span class="text-gray-700" x-text="`${String.fromCharCode(65+idx)}. ${opt}`"></span>
+                    </label>
+                </template>
+            </div>
+
+            <div x-show="feedbackType !== null" class="mt-6 p-4 rounded-xl transition-fade"
+                 :class="{'bg-green-100 border-l-4 border-green-600': feedbackType === 'correct', 'bg-red-100 border-l-4 border-red-600': feedbackType === 'wrong'}">
+                <div x-show="feedbackType === 'correct'" class="text-green-800"><p class="font-bold">✅ Resposta correta!</p></div>
+                <div x-show="feedbackType === 'wrong'" class="text-red-800">
+                    <p class="font-bold">❌ Resposta incorreta.</p>
+                    <p class="text-sm mt-1">A resposta correta é: <strong x-text="currentQuestion.correctLetter"></strong>.</p>
+                    <p class="text-xs mt-2">⚠️ Tente novamente para avançar.</p>
+                </div>
+                <button @click="searchGoogle()" class="mt-3 inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                    🔍 Pesquisar no Google
+                </button>
+            </div>
+
+            <div class="flex justify-between mt-8">
+                <button @click="previousQuestion()" :disabled="currentIndex === 0 || answeringInProgress" class="px-5 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition">◀ Anterior</button>
+                <div class="text-sm text-gray-500 italic" x-show="feedbackType === 'wrong'">👉 Selecione a opção correta para avançar</div>
+                <div class="text-sm text-green-600 font-medium" x-show="feedbackType === 'correct' && !autoNextTriggered">✔️ Acertou! Indo para a próxima...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultado final -->
+    <div x-show="quizFinished" class="bg-white rounded-2xl shadow-xl p-8 text-center border-t-8 border-red-600">
+        <div class="text-6xl mb-4">🏆</div>
+        <h2 class="text-3xl font-bold text-red-800">Quiz Concluído!</h2>
+        <div class="flex justify-center mt-6">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r="60" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+                <circle cx="70" cy="70" r="60" fill="none" stroke="#dc2626" stroke-width="12"
+                        stroke-dasharray="377"
+                        :stroke-dashoffset="377 - (377 * score / totalQuestions)"
+                        stroke-linecap="round"
+                        transform="rotate(-90 70 70)"/>
+                <text x="70" y="70" text-anchor="middle" dominant-baseline="central"
+                      class="text-3xl font-bold fill-red-800"
+                      x-text="Math.round(score/totalQuestions*100) + '%'"></text>
+            </svg>
+        </div>
+        <p class="text-xl text-gray-700 mt-4">Acertos: <span class="font-extrabold text-red-700 text-4xl" x-text="score"></span> / <span x-text="totalQuestions"></span></p>
+        <p class="text-sm text-gray-500 mt-3">⏱️ Tempo total: <span x-text="formatTime(elapsedSeconds)"></span></p>
+        <p class="mt-4 text-gray-600" x-text="score === totalQuestions ? 'Parabéns! Você domina o conteúdo do treinamento GPON.' : 'Continue estudando a cartilha e tente novamente.'"></p>
+        <button @click="restartQuiz()" class="mt-6 px-8 py-3 bg-red-700 hover:bg-red-800 text-white rounded-xl font-semibold transition shadow-md">🔄 Reiniciar Quiz</button>
+    </div>
+
+    <div class="text-center text-xs text-gray-400 mt-6 pt-4 border-t">Treinamento Técnico Claro - GPON | 100 Questões baseadas na Cartilha EAD</div>
+</div>
+
+<script>
+    function quizApp() {
+        return {
+            questions: [],
+            currentIndex: 0,
+            selectedAnswer: null,
+            feedbackType: null,
+            userAnswers: [],
+            userCorrect: [],
+            autoNextTriggered: false,
+            disableOptions: false,
+            totalQuestions: 100,
+            answeringInProgress: false,
+            startTime: null,
+            finishTime: null,
+            elapsedSeconds: 0,
+            timerInterval: null,
+            quizFinished: false,
+
+            get currentQuestion() { return this.questions[this.currentIndex]; },
+            get score() { return this.userCorrect.filter(v => v === true).length; },
+
+            initQuestions() {
+                const rawQuestions = [
+                    // Unidade 1: Conceitos de Fibra Óptica (questões 1-20)
+                    { text: "O que é fibra óptica?", correctText: "Um filamento extremamente fino e flexível, feito de vidro ultrapuro ou plástico, que carrega informações ao longo de grandes distâncias", wrongText: "Um filamento flexível feito apenas de plástico, que carrega informações somente em pequenas distâncias" },
+                    { text: "Quais são as partes que compõem a fibra óptica?", correctText: "Núcleo, casca e capa protetora", wrongText: "Núcleo, revestimento primário e capa secundária" },
+                    { text: "A função do núcleo da fibra óptica é:", correctText: "Região central por onde trafega a luz", wrongText: "Refletir a luz para mantê-la na casca" },
+                    { text: "A casca da fibra óptica possui índice de refração:", correctText: "Menor que a do núcleo, para que a luz reflita e se mantenha no núcleo", wrongText: "Maior que a do núcleo, para acelerar a propagação da luz" },
+                    { text: "A capa protetora da fibra óptica é feita geralmente de:", correctText: "Plástico, que fica ao redor da casca protegendo a fibra", wrongText: "Vidro ultrapuro, que envolve a casca e o núcleo" },
+                    { text: "No cabo óptico Drop Flat, o elemento de tração é chamado de:", correctText: "Mensageiro", wrongText: "Condutor de aço" },
+                    { text: "A função do mensageiro no cabo Drop Flat é:", correctText: "Prover resistência mecânica à tração", wrongText: "Conduzir o sinal óptico até a ONT" },
+                    { text: "O splitter óptico é um componente:", correctText: "Passivo, não necessita de energia elétrica para funcionar", wrongText: "Ativo, que requer alimentação elétrica para distribuir o sinal" },
+                    { text: "A função do splitter óptico é:", correctText: "Distribuir ou derivar um sinal óptico, permitindo que uma fibra atenda várias ONTs", wrongText: "Amplificar o sinal óptico para compensar a atenuação da rede" },
+                    { text: "Conforme a ANATEL, a atenuação máxima de um splitter 1:8 é de aproximadamente:", correctText: "10,5 dB", wrongText: "9,0 dB" },
+                    { text: "Conforme a ANATEL, a atenuação máxima de um splitter 1:32 é de aproximadamente:", correctText: "17,1 dB", wrongText: "15,5 dB" },
+                    { text: "Conforme a ANATEL, a atenuação máxima de um splitter 1:64 é de aproximadamente:", correctText: "20,4 dB", wrongText: "19,5 dB" },
+                    { text: "Sobre a classificação das fibras ópticas quanto ao modo de propagação:", correctText: "Monomodo possui núcleo menor e maior alcance; Multimodo é usada em curtas distâncias", wrongText: "Multimodo possui núcleo menor e maior alcance; Monomodo é usada em curtas distâncias" },
+                    { text: "Qual das alternativas é uma vantagem da fibra óptica?", correctText: "Imunidade a interferências eletromagnéticas e baixa atenuação", wrongText: "Baixo custo de emenda e facilidade de manuseio" },
+                    { text: "Qual das alternativas é uma desvantagem da fibra óptica?", correctText: "Custo de equipamentos ópticos e fragilidade do cabo", wrongText: "Alta atenuação e suscetibilidade a interferências" },
+                    { text: "A arquitetura FTTH significa:", correctText: "Fibra até a residência do cliente (Fiber to the Home)", wrongText: "Fibra até um poste na rua e depois cabo coaxial até a casa" },
+                    { text: "A arquitetura FTTB significa:", correctText: "Fibra até a entrada do prédio (Fiber to the Building)", wrongText: "Fibra até a calçada e depois par metálico até o assinante" },
+                    { text: "A arquitetura FTTC significa:", correctText: "Fibra até um poste ou armário na rua, e a distribuição final é por cabo coaxial ou par metálico", wrongText: "Fibra até a residência, com conversão óptico-elétrica na garagem" },
+                    { text: "A arquitetura HFC (Hibrid Fiber Coaxial) utiliza:", correctText: "Fibra da central até um transceptor óptico no poste e depois cabo coaxial até a residência", wrongText: "Fibra até a residência e depois cabo coaxial para os pontos internos" },
+                    { text: "O revestimento primário da fibra óptica tem diâmetro de:", correctText: "250 µm", wrongText: "125 µm" },
+
+                    // Unidade 2: GPON (questões 21-45)
+                    { text: "A sigla GPON significa:", correctText: "Gigabit Passive Optical Network", wrongText: "Gigabit Passive Optical Node" },
+                    { text: "As redes PON utilizam arquitetura:", correctText: "Ponto-multiponto (P2MP)", wrongText: "Ponto a ponto (P2P)" },
+                    { text: "Nas redes PON com FTTH, são utilizadas fibras do tipo:", correctText: "Monomodo", wrongText: "Multimodo" },
+                    { text: "A proporção de 'splitagem' típica em GPON é de:", correctText: "1 para 64", wrongText: "1 para 128" },
+                    { text: "A OLT (Optical Line Terminal) é o equipamento:", correctText: "Instalado na central, responsável por gerenciar e comunicar-se com as ONTs", wrongText: "Instalado na casa do cliente, que converte sinal óptico em elétrico" },
+                    { text: "A ONT (Optical Network Terminal) é o equipamento:", correctText: "Instalado na residência do cliente, que recebe o sinal óptico e converte em sinal elétrico", wrongText: "Instalado na central, que gerencia as conexões dos assinantes" },
+                    { text: "A NAP (Network Access Point) é:", correctText: "Caixa de emenda óptica que permite a ligação entre a OLT e o drop óptico do cliente", wrongText: "Equipamento ativo que amplifica o sinal óptico na rua" },
+                    { text: "A NAP da Claro trabalha com o padrão de quantos drops ópticos por caixa?", correctText: "16 drops", wrongText: "8 drops" },
+                    { text: "Em GPON, a capacidade de tráfego de downstream é de:", correctText: "2,488 Gbps", wrongText: "1,244 Gbps" },
+                    { text: "Em GPON, a capacidade de tráfego de upstream é de:", correctText: "1,244 Gbps", wrongText: "2,488 Gbps" },
+                    { text: "Os comprimentos de onda utilizados no GPON são:", correctText: "1490 nm para downstream e 1310 nm para upstream", wrongText: "1550 nm para downstream e 1310 nm para upstream" },
+                    { text: "A afirmação correta sobre GPON é:", correctText: "É uma rede óptica passiva cujos equipamentos de rede externa não dependem de energia elétrica", wrongText: "É uma rede óptica ativa cujos equipamentos de rede externa dependem de energia elétrica" },
+                    { text: "A OLT tem capacidade de controlar quantas ONTs por porta?", correctText: "64 ONTs", wrongText: "128 ONTs" },
+                    { text: "O Alicate Decapador de Acrilato é utilizado para:", correctText: "Remover o revestimento primário da fibra", wrongText: "Cortar a fibra perpendicularmente" },
+                    { text: "O Clivador é utilizado para:", correctText: "Realizar o corte perpendicular da fibra", wrongText: "Decapar o revestimento primário da fibra" },
+                    { text: "O Power Meter é utilizado para:", correctText: "Medir a potência óptica recebida", wrongText: "Localizar falhas na fibra emitindo luz visível" },
+                    { text: "A Caneta Localizadora de Falhas (VFL) é utilizada para:", correctText: "Identificar quebras ou curvaturas na fibra, emitindo luz visível", wrongText: "Medir a atenuação total do enlace óptico" },
+                    { text: "A criptografia AES no GPON é aplicada:", correctText: "Apenas no downstream", wrongText: "Em ambas as direções (downstream e upstream)" },
+                    { text: "O protocolo OMCI é responsável por:", correctText: "Gerenciamento e configuração da ONT pela OLT", wrongText: "Transporte dos dados de vídeo RF na rede" },
+                    { text: "O processo de ranging no GPON serve para:", correctText: "Equalizar as distâncias lógicas das ONTs para evitar colisões no upstream", wrongText: "Medir a potência óptica em cada porta da OLT" },
+                    { text: "O DBA (Dynamic Bandwidth Allocation) atua no:", correctText: "Upstream, alocando banda dinamicamente entre as ONTs", wrongText: "Downstream, distribuindo igualmente a banda para todas as ONTs" },
+                    { text: "A luz 'PON' piscando na ONT indica:", correctText: "Tentativa de registro na OLT sem sucesso", wrongText: "Tráfego de dados em andamento na porta Ethernet" },
+                    { text: "O estado O5 de uma ONT na PON significa:", correctText: "Em operação normal, registrada e trocando tráfego", wrongText: "Standby, aguardando o processo de ranging" },
+                    { text: "A autenticação da ONT na rede Claro é feita pelo:", correctText: "Número de série da ONT", wrongText: "Endereço MAC do roteador" },
+                    { text: "O alcance lógico máximo diferencial entre ONTs no GPON é de:", correctText: "60 km", wrongText: "20 km" },
+
+                    // Unidade 3: Procedimentos de Instalação (questões 46-65)
+                    { text: "Antes de iniciar uma instalação, ao verificar as ordens de serviço no TOA, o técnico deve:", correctText: "Conferir todos os materiais, ferramentas e terminais necessários", wrongText: "Verificar apenas a previsão do tempo e se deslocar" },
+                    { text: "O propé (proteção para os pés) deve ser utilizado:", correctText: "Em todas as visitas, seja instalação, assistência técnica ou serviço", wrongText: "Somente nas visitas de casos Ouvidoria ou Anatel" },
+                    { text: "Sobre o posicionamento da ONT na residência do cliente:", correctText: "Deve-se perguntar ao cliente os locais onde mais usa Wi-Fi e identificar o cômodo central para cobrir pelo menos 80% dos cômodos", wrongText: "Deve-se instalar na cozinha, pois é o local com maior concentração de pessoas" },
+                    { text: "O conector padrão utilizado nas terminações ópticas da Claro é:", correctText: "SC/APC (verde)", wrongText: "SC/UPC (azul)" },
+                    { text: "A face do conector SC/APC é polida em ângulo de:", correctText: "8 graus", wrongText: "9 graus" },
+                    { text: "Para limpar um conector óptico, o técnico deve usar:", correctText: "Álcool isopropílico e pano sem fiapos, ou one-click cleaner", wrongText: "Álcool etílico 70% e algodão" },
+                    { text: "Ao encontrar um cão solto na residência, o técnico deve:", correctText: "Aguardar o cliente prendê-lo antes de entrar no imóvel", wrongText: "Entrar com cuidado e oferecer petisco ao animal" },
+                    { text: "Em caso de chuva durante a instalação externa, o técnico deve:", correctText: "Suspender a instalação se houver risco elétrico ou de raios", wrongText: "Prosseguir normalmente, pois a fibra não conduz eletricidade" },
+                    { text: "O uso de escada exige:", correctText: "Apoio firme e ângulo correto de aproximadamente 75 graus (relação 4:1)", wrongText: "Apenas que esteja travada e não enferrujada" },
+                    { text: "O teste de velocidade após a instalação deve ser feito:", correctText: "Com cabo conectado diretamente à porta Ethernet da ONT", wrongText: "Somente via Wi-Fi, simulando o uso do cliente" },
+                    { text: "O site recomendado para teste de velocidade da Claro é:", correctText: "www.speedtest.net", wrongText: "www.minhaconexao.com.br" },
+                    { text: "Ao final da instalação, o técnico deve:", correctText: "Orientar o cliente sobre o uso dos serviços e testar todas as funcionalidades", wrongText: "Apenas entregar os equipamentos e encerrar a OS rapidamente" },
+                    { text: "O técnico deve fotografar ao final da instalação:", correctText: "O drop na fachada e a ONT com LED PON aceso", wrongText: "Somente o interior da residência com os equipamentos" },
+                    { text: "Em caso de rompimento do drop óptico, a primeira ação é:", correctText: "Verificar a continuidade com a Caneta VFL e, se necessário, substituir o drop", wrongText: "Substituir imediatamente a ONT do cliente" },
+                    { text: "A distância mínima de segurança entre o drop óptico e a rede elétrica é de:", correctText: "30 cm, conforme norma", wrongText: "15 cm, conforme orientação do supervisor" },
+                    { text: "O SRDO (Sistema de Registro de Distribuição Óptica) é:", correctText: "Caixa de distribuição óptica externa que abriga o NAP", wrongText: "Software de registro de ordens de serviço no PDA" },
+                    { text: "A emenda por fusão da fibra deve ser protegida com:", correctText: "Sleeve termocontrátil", wrongText: "Fita isolante de alta temperatura" },
+                    { text: "O mensageiro do drop é fixado na fachada com:", correctText: "Abraçadeira metálica ou laço pré-formado", wrongText: "Fita adesiva de alta resistência" },
+                    { text: "O decodificador SAGEMCOM S4KW1 e S4KW3 possui tecnologia:", correctText: "IPTV, utilizando o protocolo IP para recepção de canais e conteúdos", wrongText: "RF, utilizando sinal de rádio frequência via cabo coaxial" },
+                    { text: "A resolução 4K possui quantos pixels?", correctText: "3840 x 2160 linhas", wrongText: "1920 x 1080 linhas" },
+
+                    // Unidade 4: Produtos e Serviços (questões 66-85)
+                    { text: "O recurso 'Replay TV' da Claro TV+ permite:", correctText: "Recomeçar um conteúdo que está passando ou retornar a programação em até 7 dias", wrongText: "Gravar programas na nuvem para assistir offline" },
+                    { text: "O recurso 'Gravador Virtual' da Claro TV+ permite:", correctText: "Gravar programas favoritos na nuvem", wrongText: "Assistir dois canais ao mesmo tempo com PIP" },
+                    { text: "O Claro TV+ HD Box é caracterizado por:", correctText: "Auto instalação e controle remoto com comando de voz", wrongText: "Instalação técnica obrigatória e controle remoto padrão" },
+                    { text: "O plano 500 Mega do Claro Vírtua oferece upload de:", correctText: "125 Mbps", wrongText: "50 Mbps" },
+                    { text: "O plano 1 Giga do Claro Vírtua oferece download de:", correctText: "1000 Mbps", wrongText: "1024 Mbps" },
+                    { text: "Sobre IP Fixo e IP Dinâmico:", correctText: "IP Fixo é permanente e não muda; IP Dinâmico muda a cada conexão via DHCP", wrongText: "IP Dinâmico é permanente e IP Fixo muda a cada conexão" },
+                    { text: "O protocolo mais usado para distribuição de IPs dinâmicos é:", correctText: "DHCP (Dynamic Host Configuration Protocol)", wrongText: "PPPoE (Point-to-Point Protocol over Ethernet)" },
+                    { text: "Quando a franquia de consumo é excedida, a Claro:", correctText: "Reduz a velocidade para a menor comercializada na cidade", wrongText: "Corta totalmente o serviço até o próximo ciclo" },
+                    { text: "O serviço 'Siga-me' da Claro permite:", correctText: "Transferência de chamadas para outro número", wrongText: "Conferência a três entre diferentes operadoras" },
+                    { text: "O serviço 'Conferência a Três' permite:", correctText: "Falar com 3 pessoas simultaneamente", wrongText: "Falar com até 5 pessoas simultaneamente" },
+                    { text: "O serviço 'Bloqueio de Ligações' permite bloquear:", correctText: "Ligações de saída para DDD, DDI, celulares e outros", wrongText: "Apenas ligações de entrada de cobrança reversa" },
+                    { text: "A Portabilidade Numérica é o processo que permite:", correctText: "Trocar de operadora de telefone sem alterar o número", wrongText: "Trocar o número de telefone mantendo a operadora" },
+                    { text: "O serviço adicional 'Proteção Digital' da Claro oferece:", correctText: "Antivírus online para PCs, Macs, smartphones e tablets", wrongText: "Bloqueio de sites maliciosos apenas no roteador" },
+                    { text: "O serviço adicional 'WiFi Mesh' oferece:", correctText: "Múltiplos pontos de Wi-Fi que ampliam o sinal com tecnologia Mesh", wrongText: "Um único ponto de Wi-Fi de alta potência com alcance estendido" },
+                    { text: "O serviço adicional 'Ponto Ultra' é:", correctText: "Ativação de um ou mais pontos com extensão via cabo Ethernet para estabilidade", wrongText: "Roteador adicional que se conecta via Wi-Fi para ampliar o sinal" },
+                    { text: "O Claro TV+ oferece acesso a aplicativos de streaming, incluindo:", correctText: "Netflix, com possibilidade de pagamento na fatura Claro", wrongText: "Apenas YouTube e Globoplay" },
+                    { text: "O recurso 'Busca Plus' no Claro TV+ permite:", correctText: "Buscar programas por evento, elenco e equipe", wrongText: "Pesquisar apenas por título do programa" },
+                    { text: "O recurso 'PIP' (Picture in Picture) permite:", correctText: "Assistir a mais de um programa ao mesmo tempo, sem trocar de canal", wrongText: "Gravar dois canais simultaneamente" },
+                    { text: "O Claro Música permite:", correctText: "Identificar músicas que estão tocando no ambiente e adicioná-las a playlists", wrongText: "Apenas ouvir rádios online pré-selecionadas" },
+                    { text: "O plano 250 Mega do Claro Vírtua possui franquia de consumo mensal de:", correctText: "400 GB", wrongText: "250 GB" },
+
+                    // Unidade 5: Configuração e Baixa (questões 86-95)
+                    { text: "O Headend tem a função de:", correctText: "Receber o sinal, processar, ajustar, codificar e transmitir para a casa do cliente", wrongText: "Apenas amplificar o sinal de satélite para distribuição local" },
+                    { text: "A resolução 4K é de:", correctText: "3840 x 2160 pixels", wrongText: "1920 x 1080 pixels" },
+                    { text: "Sobre o controle remoto da Claro TV+:", correctText: "O cliente pode usá-lo nas funções básicas de ligar/desligar e volume do televisor", wrongText: "O controle remoto só funciona com o decodificador da Claro" },
+                    { text: "São navegadores de internet (browsers) válidos:", correctText: "Chrome, Firefox e Microsoft Edge", wrongText: "Chrome, Firefox e Windows Explorer" },
+                    { text: "O canal de transmissão Wi-Fi configurado em modo automático:", correctText: "Escolhe o melhor canal no momento em que o roteador é reiniciado", wrongText: "Permite que os dispositivos alternem entre 2.4 GHz e 5.8 GHz automaticamente" },
+                    { text: "Para que o cliente visualize a rota do técnico, o procedimento correto é:", correctText: "Selecionar 'Em Rota' no TOA e manter a função GPS ativa no PDA", wrongText: "Enviar um SMS automático ao cliente quando estiver a 5 km de distância" },
+                    { text: "O tamanho do endereço IPv6 é de:", correctText: "128 bits", wrongText: "64 bits" },
+                    { text: "Os comandos para verificar, liberar e renovar IP no Windows são, respectivamente:", correctText: "Ipconfig, Ipconfig/release e Ipconfig/renew", wrongText: "Ping, Ipconfig e cmd" },
+                    { text: "A Ordem de Serviço digital está disponível no aplicativo:", correctText: "Técnico Nota 10", wrongText: "TOA Conectado" },
+                    { text: "Para verificar a velocidade de conexão do Claro Fibra, o site correto é:", correctText: "www.speedtest.net", wrongText: "www.minhaconexao.com.br" },
+
+                    // Unidade 6: Aplicativos do Técnico (questões 96-100)
+                    { text: "O aplicativo 'Conectado' é utilizado para:", correctText: "Testar a velocidade e qualidade da internet do cliente seguindo padrões ANATEL", wrongText: "Visualizar redes sem fio detectadas pelo smartphone" },
+                    { text: "O aplicativo 'WiFi Man' é utilizado para:", correctText: "Visualizar informações sobre redes sem fio detectadas pelo smartphone", wrongText: "Executar o procedimento de baixa de ocorrências" },
+                    { text: "O aplicativo 'Técnico Nota 10' permite:", correctText: "Comunicação com o cliente, envio de HIT, OS Digital, gerência remota e foto do técnico", wrongText: "Apenas testar a velocidade da conexão do cliente" },
+                    { text: "O aplicativo 'TOA' é responsável por:", correctText: "Gerenciar ordens de serviço e permitir a visualização da rota do técnico", wrongText: "Treinamento online do técnico com vídeos e exercícios" },
+                    { text: "O aplicativo de Treinamento é utilizado para:", correctText: "Acessar conteúdos e informações de forma rápida e prática como ferramenta de consulta", wrongText: "Gerenciar ordens de serviço e rota do técnico" }
+                ];
+
+                // Embaralhar perguntas
+                for (let i = rawQuestions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [rawQuestions[i], rawQuestions[j]] = [rawQuestions[j], rawQuestions[i]];
+                }
+
+                this.questions = rawQuestions.map(q => {
+                    let options = [q.correctText, q.wrongText];
+                    if (Math.random() < 0.5) options = [q.wrongText, q.correctText];
+                    const correctIdx = options.indexOf(q.correctText);
+                    return {
+                        text: q.text,
+                        options: options,
+                        correct: String.fromCharCode(65 + correctIdx),
+                        correctLetter: String.fromCharCode(65 + correctIdx)
+                    };
+                });
+
+                this.totalQuestions = this.questions.length;
+                this.startTime = Date.now();
+                this.finishTime = null;
+                this.resetQuizState();
+                this.quizFinished = false;
+                this.loadCurrentQuestionState();
+                this.startTimer();
+            },
+
+            resetQuizState() {
+                this.currentIndex = 0;
+                this.selectedAnswer = null;
+                this.feedbackType = null;
+                this.userAnswers = new Array(this.totalQuestions).fill(null);
+                this.userCorrect = new Array(this.totalQuestions).fill(false);
+                this.autoNextTriggered = false;
+                this.disableOptions = false;
+                this.answeringInProgress = false;
+                if (this.timerInterval) clearInterval(this.timerInterval);
+                this.elapsedSeconds = 0;
+            },
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    if (!this.quizFinished) { this.elapsedSeconds++; }
+                    else { clearInterval(this.timerInterval); }
+                }, 1000);
+            },
+
+            loadCurrentQuestionState() {
+                const savedAnswer = this.userAnswers[this.currentIndex];
+                if (savedAnswer) {
+                    this.selectedAnswer = savedAnswer;
+                    const correct = this.selectedAnswer === this.currentQuestion.correct;
+                    this.feedbackType = correct ? 'correct' : 'wrong';
+                    this.disableOptions = correct;
+                } else {
+                    this.selectedAnswer = null;
+                    this.feedbackType = null;
+                    this.disableOptions = false;
+                }
+                this.autoNextTriggered = false;
+                this.answeringInProgress = false;
+            },
+
+            checkAnswer() {
+                if (!this.selectedAnswer || this.answeringInProgress || this.disableOptions) return;
+
+                const isCorrect = (this.selectedAnswer === this.currentQuestion.correct);
+                if (this.userAnswers[this.currentIndex] === null) {
+                    this.userAnswers[this.currentIndex] = this.selectedAnswer;
+                    this.userCorrect[this.currentIndex] = isCorrect;
+                    this.userCorrect = [...this.userCorrect];
+                } else {
+                    this.userAnswers[this.currentIndex] = this.selectedAnswer;
+                }
+
+                this.feedbackType = isCorrect ? 'correct' : 'wrong';
+
+                if (isCorrect) {
+                    this.disableOptions = true;
+                    this.answeringInProgress = true;
+                    const isLast = this.currentIndex + 1 >= this.totalQuestions;
+                    if (isLast) {
+                        this.finishTime = Date.now();
+                        clearInterval(this.timerInterval);
+                        this.quizFinished = true;
+                    } else {
+                        this.currentIndex++;
+                        this.loadCurrentQuestionState();
+                    }
+                    this.answeringInProgress = false;
+                    this.disableOptions = false;
+                    this.autoNextTriggered = false;
+                } else {
+                    this.disableOptions = false;
+                    this.answeringInProgress = false;
+                }
+            },
+
+            previousQuestion() {
+                if (this.currentIndex > 0 && !this.answeringInProgress) {
+                    this.currentIndex--;
+                    this.loadCurrentQuestionState();
+                }
+            },
+
+            restartQuiz() { this.initQuestions(); },
+
+            searchGoogle() {
+                const query = encodeURIComponent(this.currentQuestion.text);
+                window.open(`https://www.google.com/search?q=${query}`, '_blank');
+            },
+
+            formatTime(sec) {
+                const mins = Math.floor(sec / 60);
+                const secs = sec % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+    }
+</script>
+</body>
+</html>
